@@ -136,6 +136,16 @@ export const INDUSTRY_PROFILES: Record<IndustryKey, IndustryProfile> = {
   },
 };
 
+/**
+ * Membership test for configurable threshold names. As with the line-item registry, a `key in
+ * DEFAULT_THRESHOLDS` test would accept inherited names such as `constructor` and `toString`.
+ */
+export const THRESHOLD_KEY_SET: ReadonlySet<string> = new Set(Object.keys(DEFAULT_THRESHOLDS));
+
+export function isThresholdKey(key: string): boolean {
+  return THRESHOLD_KEY_SET.has(key);
+}
+
 export function industryProfile(industry: IndustryKey | undefined): IndustryProfile {
   return INDUSTRY_PROFILES[industry ?? 'general'] ?? INDUSTRY_PROFILES.general;
 }

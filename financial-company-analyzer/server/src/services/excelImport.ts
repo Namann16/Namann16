@@ -4,6 +4,7 @@ import { withPrototypeGuard } from './parseGuard.js';
 import {
   AUTO_MAP_CONFIDENCE,
   LINE_ITEM_MAP,
+  isLineItemKey,
   buildMappingPlan,
   isSectionHeader,
   parseCellValue,
@@ -367,7 +368,10 @@ export function commitImport(
     // The mapping target arrives from the client, so it is checked against the canonical registry
     // here as well. Without this, the import route would be a way around the allowlist that the
     // manual-input route enforces, and arbitrary keys could be written into a stored period.
-    if (!LINE_ITEM_MAP[decision]) {
+    // A Set membership test, not a lookup on the registry object: that object inherits from
+    // Object.prototype, so `LINE_ITEM_MAP['constructor']` is truthy and a bracket check here
+    // would let inherited names straight through the allowlist.
+    if (!isLineItemKey(decision)) {
       skipped.push({
         rowKey: row.key,
         label: row.label,
@@ -404,6 +408,7 @@ export function commitImport(
       // positive convention, the magnitude is taken and the adjustment is reported — never
       // applied silently, because a genuine sign error would otherwise disappear.
       let value = cell.value;
+      // Safe to look up directly: `decision` was checked against the registry above.
       const definition = LINE_ITEM_MAP[decision];
       if (definition?.sign === 'positive' && value < 0) {
         warnings.push({

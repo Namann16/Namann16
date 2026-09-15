@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as XLSX from 'xlsx';
 import { withPrototypeGuard } from '../src/services/parseGuard.js';
 import { commitImport, parseWorkbook } from '../src/services/excelImport.js';
+import { commitImportSchema, peerSchema, thresholdsSchema } from '../src/validation/schemas.js';
 
 /**
  * Defences around parsing untrusted spreadsheets.
@@ -87,5 +88,81 @@ describe('import mapping targets are validated server-side', () => {
     const result = commitImport(parsed, { [revenueRow.key]: '__proto__' }, ['FY25']);
     expect(Object.keys(result.periods[0]!.values)).toHaveLength(0);
     expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
+  });
+
+  /**
+   * An allowlist checked with `map[key]` or `key in map` consults the prototype chain, so every
+   * inherited member of Object.prototype passes it. These names must be refused like any other
+   * unrecognised field; membership is tested through a Set for exactly this reason.
+   */
+  const INHERITED = ['constructor', 'toString', 'valueOf', 'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable', 'toLocaleString', '__proto__'];
+
+  it.each(INHERITED)('refuses the inherited name %s as a mapping target', (name) => {
+    const result = commitImport(parsed, { [revenueRow.key]: name }, ['FY25']);
+    expect(Object.keys(result.periods[0]!.values)).toHaveLength(0);
+    expect(result.skipped.some((s) => /not a recognised financial line item/.test(s.reason))).toBe(true);
+  });
+});
+
+describe('request validation rejects inherited property names', () => {
+  const INHERITED = ['constructor', 'toString', 'hasOwnProperty', '__proto__'];
+
+  it.each(INHERITED)('rejects %s as an import mapping target', (name) => {
+    const result = commitImportSchema.safeParse({
+      importId: 'abcdefghij',
+      mappings: { 'Sheet1::4': name },
+      periods: ['FY25'],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('still accepts a genuine line item as a mapping target', () => {
+    const result = commitImportSchema.safeParse({
+      importId: 'abcdefghij',
+      mappings: { 'Sheet1::4': 'revenue', 'Sheet1::5': null },
+      periods: ['FY25'],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  /**
+   * For object KEYS the guarantee is that nothing unrecognised survives parsing. Two mechanisms
+   * deliver it: `constructor` and friends are rejected outright by the Set membership test, while
+   * `__proto__` is dropped by the parser before the refinement sees it, because assigning that
+   * name onto the result object sets a prototype rather than creating a property. Either way the
+   * key never reaches storage, which is what the assertion checks.
+   */
+  it.each(INHERITED)('never lets %s through as a threshold name', (name) => {
+    const result = thresholdsSchema.safeParse({ [name]: 1, roicHurdle: 9 });
+    if (result.success) {
+      expect(Object.keys(result.data)).toEqual(['roicHurdle']);
+      expect(Object.prototype.hasOwnProperty.call(result.data, name)).toBe(false);
+    }
+    // And the prototype itself is untouched either way.
+    expect((Object.prototype as Record<string, unknown>)['roicHurdle']).toBeUndefined();
+  });
+
+  it('rejects an unrecognised threshold name outright', () => {
+    const result = thresholdsSchema.safeParse({ notAThreshold: 1 });
+    expect(result.success).toBe(false);
+  });
+
+  it('still accepts a genuine threshold', () => {
+    expect(thresholdsSchema.safeParse({ roicHurdle: 9 }).success).toBe(true);
+  });
+
+  it.each(INHERITED)('never lets %s through as a peer metric name', (name) => {
+    const result = peerSchema.safeParse({ name: 'Peer', metrics: { [name]: 1, ebitdaMargin: 12 } });
+    if (result.success) {
+      expect(Object.keys(result.data.metrics)).toEqual(['ebitdaMargin']);
+    }
+  });
+
+  it('rejects an unrecognised peer metric outright', () => {
+    expect(peerSchema.safeParse({ name: 'Peer', metrics: { madeUpMetric: 1 } }).success).toBe(false);
+  });
+
+  it('still accepts a genuine peer metric', () => {
+    expect(peerSchema.safeParse({ name: 'Peer', metrics: { ebitdaMargin: 14.2 } }).success).toBe(true);
   });
 });

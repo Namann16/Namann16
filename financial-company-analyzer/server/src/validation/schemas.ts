@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { LINE_ITEM_KEYS, DEFAULT_THRESHOLDS, INDUSTRY_PROFILES } from '@fca/core';
+import { LINE_ITEM_KEYS, INDUSTRY_PROFILES, PEER_METRIC_KEYS, isLineItemKey, isThresholdKey } from '@fca/core';
 
 /**
  * Server-side validation.
@@ -9,7 +9,12 @@ import { LINE_ITEM_KEYS, DEFAULT_THRESHOLDS, INDUSTRY_PROFILES } from '@fca/core
  */
 
 const industryKeys = Object.keys(INDUSTRY_PROFILES) as [string, ...string[]];
-const lineItemKeys = new Set(LINE_ITEM_KEYS);
+
+/**
+ * Allowlist membership is always tested through a Set, never through `key in object` or a
+ * truthiness lookup: those consult the prototype chain and would accept inherited names such as
+ * `constructor`, `toString` and `__proto__`, defeating the allowlist entirely.
+ */
 
 /** A financial value: a finite number, or explicitly null meaning "not available". */
 export const financialValue = z
@@ -22,7 +27,7 @@ export const valuesRecord = z
   .record(z.string(), financialValue)
   .superRefine((record, ctx) => {
     for (const key of Object.keys(record)) {
-      if (!lineItemKeys.has(key)) {
+      if (!isLineItemKey(key)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: `"${key}" is not a recognised financial line item.`,
@@ -44,14 +49,25 @@ export const periodSchema = z.object({
 export const peerSchema = z.object({
   name: z.string().trim().min(1).max(120),
   source: z.string().max(200).nullable().optional(),
-  metrics: z.record(z.string(), financialValue).default({}),
+  // Peer metric keys are inert downstream (only PEER_METRIC_KEYS is ever read), but they are
+  // constrained anyway so every allowlist in the application follows the same rule.
+  metrics: z
+    .record(z.string(), financialValue)
+    .default({})
+    .superRefine((record, ctx) => {
+      for (const key of Object.keys(record)) {
+        if (!PEER_METRIC_KEYS.includes(key)) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: `"${key}" is not a benchmarked metric.`, path: [key] });
+        }
+      }
+    }),
 });
 
 export const thresholdsSchema = z
   .record(z.string(), z.number().finite())
   .superRefine((record, ctx) => {
     for (const key of Object.keys(record)) {
-      if (!(key in DEFAULT_THRESHOLDS)) {
+      if (!isThresholdKey(key)) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: `"${key}" is not a configurable threshold.`, path: [key] });
       }
     }
@@ -127,7 +143,19 @@ export const commitImportSchema = z.object({
   /** Token identifying the parsed upload held server-side. */
   importId: z.string().min(8).max(64),
   /** sourceRowKey -> canonical line item key, or null to skip the row. */
-  mappings: z.record(z.string(), z.string().nullable()),
+  mappings: z
+    .record(z.string(), z.string().nullable())
+    .superRefine((record, ctx) => {
+      for (const [row, target] of Object.entries(record)) {
+        if (target !== null && !isLineItemKey(target)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `"${target}" is not a recognised financial line item.`,
+            path: [row],
+          });
+        }
+      }
+    }),
   /** Period columns the user chose to import, by header label. */
   periods: z.array(z.string().min(1).max(40)).min(1, 'Select at least one period to import.'),
   mode: z.enum(['replace', 'merge']).default('replace'),

@@ -113,6 +113,21 @@ export const LINE_ITEM_MAP: Record<string, LineItemDef> = Object.fromEntries(
 
 export const LINE_ITEM_KEYS = LINE_ITEMS.map((i) => i.key);
 
+/**
+ * Membership test for line-item keys.
+ *
+ * Use this rather than a truthiness check on LINE_ITEM_MAP. That object is built with
+ * `Object.fromEntries`, so it inherits from `Object.prototype` and a bracket lookup returns a
+ * truthy value for inherited names — `constructor`, `toString`, `__proto__` and the rest would
+ * pass a `if (!LINE_ITEM_MAP[key])` guard and defeat the allowlist. A Set has no such chain.
+ */
+export const LINE_ITEM_KEY_SET: ReadonlySet<string> = new Set(LINE_ITEM_KEYS);
+
+/** True only for a key that is genuinely in the canonical registry. */
+export function isLineItemKey(key: string): boolean {
+  return LINE_ITEM_KEY_SET.has(key);
+}
+
 export function lineItemsFor(statement: StatementKey): LineItemDef[] {
   return LINE_ITEMS.filter((i) => i.statement === statement);
 }
