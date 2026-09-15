@@ -138,6 +138,12 @@ No database migration is needed: values are stored as an open map keyed by line-
 
 **The rules that make a rule acceptable:**
 
+- **Test allowlist membership with a `Set`**, never `map[key]` or `key in map`. Objects built
+  with `Object.fromEntries` or a literal inherit `Object.prototype`, so both of those forms return
+  truthy for `constructor`, `toString`, `valueOf`, `hasOwnProperty` and `__proto__` — which
+  defeats the allowlist entirely. The engine exports `isLineItemKey` and `isThresholdKey` for
+  exactly this; follow the pattern for anything new.
+
 - **Return `null` when the data is absent.** A rule must never fire on assumed numbers. A rule
   that cannot evaluate simply does not fire; `runRules` also catches a throwing rule so one bad
   rule can never take down the analysis.
