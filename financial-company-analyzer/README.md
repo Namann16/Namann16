@@ -223,6 +223,9 @@ at 100% confidence.
 Terminology is matched against a synonym dictionary, so `Net Sales`, `Turnover`, `Revenue from
 Operations` and `Total Income` all resolve to Revenue. Then the **review screen** shows you:
 
+![Import review](docs/images/import-review.png)
+
+
 ```
 Sheet field                    Maps to              Confidence   Why
 Revenue from Operations   →    Revenue                  100%     Exact match with "revenue from operations"

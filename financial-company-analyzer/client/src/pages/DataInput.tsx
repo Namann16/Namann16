@@ -418,7 +418,7 @@ export default function DataInput() {
                 <thead>
                   <tr>
                     <th className="text-left">Sheet field</th>
-                    <th className="text-left">Maps to</th>
+                    <th className="text-left" style={{ minWidth: 230 }}>Maps to</th>
                     <th>Confidence</th>
                     <th className="text-left">Why</th>
                     <th className="text-right">Sample value</th>
@@ -446,6 +446,7 @@ export default function DataInput() {
                         <td className="text-left">
                           <select
                             className="input py-1"
+                            style={{ minWidth: 210 }}
                             value={chosen}
                             onChange={(e) => setImportDecisions((prev) => ({ ...prev, [mapping.rowKey]: e.target.value || null }))}
                           >
