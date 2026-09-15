@@ -74,7 +74,7 @@ memory and tells you so in the sidebar; everything else behaves identically.
 ### Other commands
 
 ```bash
-npm test              # 124 unit tests across the engine, import/export, persistence and upload safety
+npm test              # 149 unit tests across the engine, import/export, persistence and upload safety
 npm run test:watch
 npm run build         # build engine, API and client for production
 npm run start         # serve the built API
@@ -126,7 +126,7 @@ financial-company-analyzer/
 │   ├── src/models/         Mongoose schemas
 │   ├── src/routes/         companies, analysis, import, export, metadata
 │   ├── src/services/       repository, Excel import/template/export, report
-│   └── test/               36 tests
+│   └── test/               61 tests
 └── client/                 @fca/client — React + Vite web app
     ├── src/pages/          the 16 screens
     ├── src/components/     UI primitives, charts, analysis views
@@ -282,7 +282,7 @@ labelled as sample data in the interface, on every export and in the PDF report.
 npm test
 ```
 
-124 tests. The financial expectations are hand-calculated, not snapshots of the engine's own
+149 tests. The financial expectations are hand-calculated, not snapshots of the engine's own
 output, so a regression in a formula fails the test rather than silently rewriting the expectation.
 
 Covered: growth and CAGR, all margins, ROA/ROE/ROIC/ROCE, current/quick/cash ratios, debt/equity,
@@ -293,7 +293,8 @@ where a saved analysis could silently lose line items.
 And the cases that matter more: missing data, zero denominators, negative values, negative equity,
 one-year datasets, partial statements, industry suppression, unreadable spreadsheet cells,
 ambiguous field mappings, export escaping, and the upload guard that reverts and rejects a
-workbook which tries to modify built-in prototypes.
+workbook which tries to modify built-in prototypes, and the allowlists that must not admit
+inherited property names.
 
 ---
 
@@ -309,6 +310,9 @@ workbook which tries to modify built-in prototypes.
 - Field mappings confirmed during an Excel import are re-checked against the canonical line-item
   registry server-side, so the import route is not a way around the allowlist the manual-input
   route enforces
+- Allowlist membership is always tested through a `Set`, never with `map[key]` or `key in map`.
+  Those consult the prototype chain, so `constructor`, `toString` and `__proto__` pass them and
+  the allowlist is defeated — this was a real bug found in review and is covered by tests
 - No API key is exposed to the frontend
 
 ### Known supply-chain issue: the spreadsheet parser
