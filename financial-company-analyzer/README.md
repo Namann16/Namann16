@@ -74,7 +74,7 @@ memory and tells you so in the sidebar; everything else behaves identically.
 ### Other commands
 
 ```bash
-npm test              # 109 unit tests across the engine and the import/export layer
+npm test              # 124 unit tests across the engine, import/export, persistence and upload safety
 npm run test:watch
 npm run build         # build engine, API and client for production
 npm run start         # serve the built API
@@ -126,7 +126,7 @@ financial-company-analyzer/
 │   ├── src/models/         Mongoose schemas
 │   ├── src/routes/         companies, analysis, import, export, metadata
 │   ├── src/services/       repository, Excel import/template/export, report
-│   └── test/               21 tests
+│   └── test/               36 tests
 └── client/                 @fca/client — React + Vite web app
     ├── src/pages/          the 16 screens
     ├── src/components/     UI primitives, charts, analysis views
@@ -279,16 +279,18 @@ labelled as sample data in the interface, on every export and in the PDF report.
 npm test
 ```
 
-109 tests. The financial expectations are hand-calculated, not snapshots of the engine's own
+124 tests. The financial expectations are hand-calculated, not snapshots of the engine's own
 output, so a regression in a formula fails the test rather than silently rewriting the expectation.
 
 Covered: growth and CAGR, all margins, ROA/ROE/ROIC/ROCE, current/quick/cash ratios, debt/equity,
 net debt/EBITDA, interest coverage, DSO/DIO/DPO/CCC, FCF, CFO/net income, the DuPont identity and
-its attribution, the balance-sheet check and cash-flow reconciliation.
+its attribution, the balance-sheet check and cash-flow reconciliation, and the persistence mapping
+where a saved analysis could silently lose line items.
 
 And the cases that matter more: missing data, zero denominators, negative values, negative equity,
 one-year datasets, partial statements, industry suppression, unreadable spreadsheet cells,
-ambiguous field mappings, and export escaping.
+ambiguous field mappings, export escaping, and the upload guard that reverts and rejects a
+workbook which tries to modify built-in prototypes.
 
 ---
 
@@ -301,7 +303,34 @@ ambiguous field mappings, and export escaping.
 - Helmet, a CORS allow-list and rate limiting on all routes
 - Company-supplied text is escaped in the generated report
 - CSV exports neutralise leading `= + - @` so a crafted company name cannot execute on open
+- Field mappings confirmed during an Excel import are re-checked against the canonical line-item
+  registry server-side, so the import route is not a way around the allowlist the manual-input
+  route enforces
 - No API key is exposed to the frontend
+
+### Known supply-chain issue: the spreadsheet parser
+
+`xlsx` is pinned at **0.18.5**, which is the last version SheetJS published to npm — they now
+distribute only from their own CDN, so `npm install xlsx@latest` still resolves to 0.18.5. That
+line carries a prototype-pollution issue reachable by parsing a crafted workbook
+([CVE-2023-30533](https://nvd.nist.gov/vuln/detail/CVE-2023-30533), fixed in 0.19.3).
+
+Since this application parses untrusted uploads, that path is reachable, so two things are in
+place:
+
+1. **Move to the patched build** if your network allows it. This is the real fix:
+
+   ```bash
+   npm install --workspace @fca/server https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
+   ```
+
+   It was not done here because the build environment's egress policy blocks `cdn.sheetjs.com`.
+
+2. **Until then, the parse is bounded at runtime.** `server/src/services/parseGuard.ts` snapshots
+   the built-in prototypes, runs the parse, and if anything was grafted onto them it removes the
+   additions and rejects the upload with a 400. Pollution cannot outlive the request that caused
+   it or reach another user's analysis. This is containment, not a substitute for the upgrade —
+   see `server/test/parseGuard.test.ts`, which verifies both the revert and the rejection.
 
 ---
 
@@ -316,3 +345,6 @@ ambiguous field mappings, and export escaping.
   interim figures is not applied: days-based metrics assume a 365-day period
 - There is no authentication; the application is intended to run locally or behind your own
   access control
+- The MongoDB path is covered by unit tests of the document mapping, but the live driver round
+  trip has not been exercised — MongoDB was not available in the environment this was built in.
+  The in-memory path is verified end to end.

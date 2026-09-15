@@ -24,14 +24,20 @@ export function storageMode(): 'mongodb' | 'memory' {
   return isDatabaseConnected() ? 'mongodb' : 'memory';
 }
 
-function mapToObject<T>(value: unknown): Record<string, T> {
+/**
+ * Mongoose returns schema maps as `Map` instances from a document and as plain objects from
+ * `.lean()`, so both shapes have to be handled. Exported for testing: this conversion is the
+ * seam where a persisted analysis could silently lose line items.
+ */
+export function mapToObject<T>(value: unknown): Record<string, T> {
   if (!value) return {};
   if (value instanceof Map) return Object.fromEntries(value) as Record<string, T>;
   if (typeof value === 'object') return { ...(value as Record<string, T>) };
   return {};
 }
 
-function fromDocument(doc: any): StoredCompany {
+/** Convert a persisted document into the shape the engine consumes. Exported for testing. */
+export function fromDocument(doc: any): StoredCompany {
   const company: CompanyProfile = {
     id: String(doc._id),
     name: doc.name,

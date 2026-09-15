@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import * as XLSX from 'xlsx';
+import { withPrototypeGuard } from './parseGuard.js';
 import {
   AUTO_MAP_CONFIDENCE,
   LINE_ITEM_MAP,
@@ -191,8 +192,13 @@ export function parseWorkbook(buffer: Buffer, options: ParseOptions): ParsedImpo
   let workbook: XLSX.WorkBook;
   try {
     // cellDates keeps date headers as Date objects so period detection can read them.
-    workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true, cellFormula: false, cellHTML: false });
+    // Formula and HTML evaluation stay off, and the parse runs under a prototype guard because
+    // the bytes are attacker controlled — see services/parseGuard.ts.
+    workbook = withPrototypeGuard(() =>
+      XLSX.read(buffer, { type: 'buffer', cellDates: true, cellFormula: false, cellHTML: false }),
+    );
   } catch (error) {
+    if ((error as { status?: number }).status === 400) throw error;
     throw Object.assign(new Error(`The file could not be read as a spreadsheet: ${(error as Error).message}`), {
       status: 400,
     });
@@ -355,6 +361,24 @@ export function commitImport(
       if (!isSectionHeader(row.label, { hasValues: row.hasValues })) {
         skipped.push({ rowKey: row.key, label: row.label, reason: 'No field was selected for this row, so it was not imported.' });
       }
+      continue;
+    }
+
+    // The mapping target arrives from the client, so it is checked against the canonical registry
+    // here as well. Without this, the import route would be a way around the allowlist that the
+    // manual-input route enforces, and arbitrary keys could be written into a stored period.
+    if (!LINE_ITEM_MAP[decision]) {
+      skipped.push({
+        rowKey: row.key,
+        label: row.label,
+        reason: `"${decision}" is not a recognised financial line item, so this row was not imported.`,
+      });
+      warnings.push({
+        level: 'warning',
+        sheet: row.sheet,
+        row: row.row,
+        message: `"${row.label}" was mapped to an unrecognised field ("${decision}") and has been skipped.`,
+      });
       continue;
     }
 
