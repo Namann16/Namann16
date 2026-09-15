@@ -107,11 +107,29 @@ export const SYNONYMS: Record<string, string[]> = {
   dividendPerShare: ['dividend per share', 'dps'],
 };
 
-/** Terms that indicate a row is a section header rather than a data line. */
-const SECTION_HEADERS = new Set([
+/**
+ * Labels that are never a data row, whatever the sheet contains. A statement may have a row
+ * called "Total Assets", but a row called simply "ASSETS" is always a banner.
+ */
+const ALWAYS_HEADERS = new Set([
   'assets', 'liabilities', 'equity', 'income statement', 'balance sheet', 'cash flow statement',
-  'profit and loss', 'particulars', 'operating activities', 'investing activities', 'financing activities',
+  'profit and loss', 'statement of profit and loss', 'particulars', 'description',
+  'operating activities', 'investing activities', 'financing activities',
+  'cash flows from operating activities', 'cash flows from investing activities',
+  'cash flows from financing activities',
   'current assets', 'non current assets', 'current liabilities', 'non current liabilities',
+  'equity and liabilities', 'shareholders funds', 'sources of funds', 'application of funds',
+  'notes', 'note',
+]);
+
+/**
+ * Labels that are a banner only when the row carries no numbers. "Income" above a block of
+ * revenue lines is a heading; "Income" with figures beside it is the total income line, and
+ * treating it as a heading would silently drop real data.
+ */
+const BANNER_HEADERS = new Set([
+  'income', 'incomes', 'expenses', 'expenditure', 'revenue', 'revenues', 'earnings',
+  'total', 'totals', 'operating', 'investing', 'financing',
 ]);
 
 export function normalizeLabel(text: string): string {
@@ -234,8 +252,18 @@ export function suggestMappings(sourceLabel: string, restrictTo?: string[]): Map
     .slice(0, 5);
 }
 
-export function isSectionHeader(label: string): boolean {
-  return SECTION_HEADERS.has(normalizeLabel(label));
+/**
+ * Decide whether a source row is a section banner rather than a financial line item.
+ *
+ * `hasValues` says whether the row carried any readable numbers. It defaults to true so that a
+ * caller with no value information errs towards treating the row as data — dropping a real line
+ * item is a worse failure than offering a mapping for a heading the user can ignore.
+ */
+export function isSectionHeader(label: string, options: { hasValues?: boolean } = {}): boolean {
+  const normalized = normalizeLabel(label);
+  if (ALWAYS_HEADERS.has(normalized)) return true;
+  const hasValues = options.hasValues ?? true;
+  return !hasValues && BANNER_HEADERS.has(normalized);
 }
 
 /**
@@ -245,11 +273,11 @@ export function isSectionHeader(label: string): boolean {
  * so a workbook that lists "Revenue" twice does not overwrite itself silently.
  */
 export function buildMappingPlan(
-  rows: { label: string; row: number; sheet: string }[],
+  rows: { label: string; row: number; sheet: string; hasValues?: boolean }[],
   restrictTo?: string[],
 ): MappingCandidate[] {
   const candidates: MappingCandidate[] = rows.map((row) => {
-    const header = isSectionHeader(row.label);
+    const header = isSectionHeader(row.label, { hasValues: row.hasValues ?? true });
     const suggestions = header ? [] : suggestMappings(row.label, restrictTo);
     const top = suggestions[0];
     return {
