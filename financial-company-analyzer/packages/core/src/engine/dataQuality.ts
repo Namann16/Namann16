@@ -206,8 +206,15 @@ export function assessDataQuality(
   }
 
   /* ---------- Metrics that could not be calculated ---------- */
+  const firstPeriod = periods[0]?.label;
   for (const series of Object.values(metrics)) {
-    const blocked = series.points.filter((p) => p.status === 'insufficient_data' || p.status === 'undefined_denominator');
+    const blocked = series.points
+      .filter((p) => p.status === 'insufficient_data' || p.status === 'undefined_denominator')
+      // A growth or average-balance metric is necessarily unavailable in the earliest period,
+      // because there is no prior period to compare against. Reporting that as a data-quality
+      // warning would bury the genuine problems under one row per metric, so it is not raised.
+      .filter((p) => !(p.period === firstPeriod && requiresPriorPeriod(p)));
+
     if (blocked.length === 0 || blocked.length === series.points.length) {
       if (blocked.length > 0 && blocked.length === series.points.length && series.points.length > 0) {
         checks.push({
@@ -270,6 +277,19 @@ export function assessDataQuality(
     skipped: checks.filter((c) => c.status === 'skipped').length,
     completeness,
   };
+}
+
+/**
+ * True when a metric point could not be calculated only because it needs a prior period.
+ *
+ * The metric records the inputs it wanted; a missing input labelled "(prior)" in the earliest
+ * period is expected rather than a defect in the data.
+ */
+function requiresPriorPeriod(point: { inputs: Record<string, Num>; note?: string }): boolean {
+  const missingPriorInput = Object.entries(point.inputs).some(
+    ([label, value]) => /\(prior\)|\(opening\)/i.test(label) && !isNum(value),
+  );
+  return missingPriorInput || /\(prior\)|\(opening\)/i.test(point.note ?? '');
 }
 
 /** Balance sheet difference for a single period, or null when it cannot be tested. */
