@@ -8,3 +8,6 @@ build/
 coverage/
 uploads/
 .vite/
+
+# TypeScript incremental build state: machine-specific and regenerated on every build.
+*.tsbuildinfo
