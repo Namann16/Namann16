@@ -1,0 +1,28 @@
+{
+  "name": "financial-company-analyzer",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Professional financial analysis workspace: structure, validate and interpret company financials.",
+  "workspaces": [
+    "packages/core",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "build:core": "npm run build -w @fca/core",
+    "dev": "npm run build:core && concurrently -n server,client -c cyan,magenta \"npm run dev -w @fca/server\" \"npm run dev -w @fca/client\"",
+    "dev:server": "npm run dev -w @fca/server",
+    "dev:client": "npm run dev -w @fca/client",
+    "build": "npm run build:core && npm run build -w @fca/server && npm run build -w @fca/client",
+    "start": "npm run start -w @fca/server",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "npm run typecheck -w @fca/core && npm run typecheck -w @fca/server && npm run typecheck -w @fca/client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

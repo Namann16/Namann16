@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-ink-50 text-ink-900 font-sans text-[13px] antialiased;
+  }
+
+  .dark body {
+    @apply bg-ink-950 text-ink-100;
+  }
+
+  /* Financial figures are read in columns, so digits must not shift width. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-ink-300 rounded-full border-2 border-solid border-transparent bg-clip-content; }
+  .dark ::-webkit-scrollbar-thumb { @apply bg-ink-700; }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent-400 ring-offset-1 ring-offset-white;
+  }
+  .dark :focus-visible {
+    @apply ring-offset-ink-950;
+  }
+}
+
+@layer components {
+  .surface {
+    @apply bg-white border border-ink-200 rounded-lg shadow-card;
+  }
+  .dark .surface {
+    @apply bg-ink-900 border-ink-800/60;
+  }
+
+  .label-caps {
+    @apply text-2xs font-semibold uppercase tracking-wider text-ink-500;
+  }
+  .dark .label-caps {
+    @apply text-ink-400;
+  }
+
+  /* Dense financial table defaults, shared by every statement and ratio grid. */
+  .fin-table {
+    @apply w-full border-collapse text-[12.5px];
+  }
+  .fin-table th,
+  .fin-table td {
+    @apply px-3 py-[6px] border-b border-ink-100 text-right whitespace-nowrap;
+  }
+  .dark .fin-table th,
+  .dark .fin-table td {
+    @apply border-ink-800/60;
+  }
+  .fin-table thead th {
+    @apply sticky top-0 z-10 bg-ink-50 text-2xs font-semibold uppercase tracking-wider text-ink-500 border-b-2 border-ink-300;
+  }
+  .dark .fin-table thead th {
+    @apply bg-ink-900 text-ink-400 border-ink-700;
+  }
+  .fin-table tbody th,
+  .fin-table thead th:first-child {
+    @apply text-left font-medium;
+  }
+  .fin-table tbody tr:hover {
+    @apply bg-accent-50/60;
+  }
+  .dark .fin-table tbody tr:hover {
+    @apply bg-ink-800/40;
+  }
+  .fin-table tr.row-section td {
+    @apply text-left bg-ink-100/70 text-2xs font-semibold uppercase tracking-wider text-ink-500 py-[5px];
+  }
+  .dark .fin-table tr.row-section td {
+    @apply bg-ink-800/50 text-ink-400;
+  }
+  .fin-table tr.row-total th,
+  .fin-table tr.row-total td {
+    @apply font-semibold border-t border-ink-300 bg-ink-50/60;
+  }
+  .dark .fin-table tr.row-total th,
+  .dark .fin-table tr.row-total td {
+    @apply border-ink-700 bg-ink-800/30;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-[12.5px] font-medium
+           transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-accent-700 text-white hover:bg-accent-800;
+  }
+  .btn-secondary {
+    @apply btn border border-ink-300 bg-white text-ink-700 hover:bg-ink-100;
+  }
+  .dark .btn-secondary {
+    @apply border-ink-700 bg-ink-900 text-ink-200 hover:bg-ink-800;
+  }
+  .btn-ghost {
+    @apply btn text-ink-600 hover:bg-ink-100;
+  }
+  .dark .btn-ghost {
+    @apply text-ink-300 hover:bg-ink-800;
+  }
+  .btn-danger {
+    @apply btn border border-negative-200 text-negative-700 hover:bg-negative-50;
+  }
+
+  .input {
+    @apply w-full rounded-md border border-ink-300 bg-white px-2.5 py-1.5 text-[12.5px] text-ink-900
+           placeholder:text-ink-400 focus:border-accent-400 focus:outline-none focus:ring-1 focus:ring-accent-400;
+  }
+  .dark .input {
+    @apply border-ink-700 bg-ink-900 text-ink-100 placeholder:text-ink-500;
+  }
+
+  .cell-input {
+    @apply w-full bg-transparent px-2 py-1 text-right text-[12.5px] tnum
+           border border-transparent rounded focus:border-accent-400 focus:bg-white focus:outline-none;
+  }
+  .dark .cell-input {
+    @apply focus:bg-ink-800;
+  }
+}

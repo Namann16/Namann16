@@ -1,0 +1,215 @@
+import { randomUUID } from 'node:crypto';
+import type { CompanyDataset, CompanyProfile, FinancialPeriod, PeerCompany, ThresholdConfig } from '@fca/core';
+import { CompanyModel } from '../models/Company.js';
+import { isDatabaseConnected } from '../db/connect.js';
+
+/**
+ * Storage layer with two backends.
+ *
+ * When MongoDB is reachable, companies are persisted through Mongoose. When it is not, the same
+ * interface is served from an in-memory store so the application remains fully functional for
+ * evaluation. The caller never needs to know which is in use; `storageMode()` reports it so the
+ * UI can tell the user their data will not survive a restart.
+ */
+
+export interface StoredCompany extends CompanyDataset {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const memory = new Map<string, StoredCompany>();
+
+export function storageMode(): 'mongodb' | 'memory' {
+  return isDatabaseConnected() ? 'mongodb' : 'memory';
+}
+
+/**
+ * Mongoose returns schema maps as `Map` instances from a document and as plain objects from
+ * `.lean()`, so both shapes have to be handled. Exported for testing: this conversion is the
+ * seam where a persisted analysis could silently lose line items.
+ */
+export function mapToObject<T>(value: unknown): Record<string, T> {
+  if (!value) return {};
+  if (value instanceof Map) return Object.fromEntries(value) as Record<string, T>;
+  if (typeof value === 'object') return { ...(value as Record<string, T>) };
+  return {};
+}
+
+/** Convert a persisted document into the shape the engine consumes. Exported for testing. */
+export function fromDocument(doc: any): StoredCompany {
+  const company: CompanyProfile = {
+    id: String(doc._id),
+    name: doc.name,
+    industry: doc.industry,
+    sector: doc.sector ?? undefined,
+    country: doc.country ?? undefined,
+    currency: doc.currency,
+    currencyLabel: doc.currencyLabel ?? undefined,
+    fiscalYearEnd: doc.fiscalYearEnd ?? undefined,
+    reportingPeriod: doc.reportingPeriod ?? 'annual',
+    units: doc.units,
+    ticker: doc.ticker ?? null,
+    benchmark: doc.benchmark ?? null,
+    marketCap: doc.marketCap ?? null,
+    sharePrice: doc.sharePrice ?? null,
+    sharesOutstanding: doc.sharesOutstanding ?? null,
+    notes: doc.notes ?? undefined,
+    isSample: Boolean(doc.isSample),
+  };
+
+  const periods: FinancialPeriod[] = (doc.periods ?? []).map((p: any) => ({
+    label: p.label,
+    endDate: p.endDate ?? null,
+    order: p.order,
+    isPartial: Boolean(p.isPartial),
+    values: mapToObject<number | null>(p.values),
+    sources: mapToObject<'entered' | 'calculated'>(p.sources),
+  }));
+
+  const peers: PeerCompany[] = (doc.peers ?? []).map((p: any) => ({
+    name: p.name,
+    source: p.source ?? undefined,
+    metrics: mapToObject<number | null>(p.metrics),
+  }));
+
+  return {
+    id: String(doc._id),
+    company,
+    periods,
+    peers,
+    thresholds: mapToObject<number>(doc.thresholds) as Partial<ThresholdConfig>,
+    createdAt: doc.createdAt?.toISOString?.() ?? new Date().toISOString(),
+    updatedAt: doc.updatedAt?.toISOString?.() ?? new Date().toISOString(),
+  };
+}
+
+export interface CompanySummary {
+  id: string;
+  name: string;
+  industry: string;
+  currency: string;
+  units: string;
+  periodCount: number;
+  latestPeriod: string | null;
+  isSample: boolean;
+  updatedAt: string;
+}
+
+function toSummary(entry: StoredCompany): CompanySummary {
+  const sorted = [...entry.periods].sort((a, b) => a.order - b.order);
+  return {
+    id: entry.id,
+    name: entry.company.name,
+    industry: entry.company.industry,
+    currency: entry.company.currency,
+    units: entry.company.units,
+    periodCount: entry.periods.length,
+    latestPeriod: sorted.length ? sorted[sorted.length - 1]!.label : null,
+    isSample: Boolean(entry.company.isSample),
+    updatedAt: entry.updatedAt,
+  };
+}
+
+export async function listCompanies(): Promise<CompanySummary[]> {
+  if (storageMode() === 'mongodb') {
+    const docs = await CompanyModel.find().sort({ updatedAt: -1 }).limit(200).lean();
+    return docs.map((d: any) => toSummary(fromDocument(d)));
+  }
+  return [...memory.values()]
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .map(toSummary);
+}
+
+export async function getCompany(id: string): Promise<StoredCompany | null> {
+  if (storageMode() === 'mongodb' && !id.startsWith('mem_')) {
+    const doc = await CompanyModel.findById(id).lean().catch(() => null);
+    return doc ? fromDocument(doc) : null;
+  }
+  return memory.get(id) ?? null;
+}
+
+export interface UpsertInput {
+  company: CompanyProfile;
+  periods?: FinancialPeriod[];
+  peers?: PeerCompany[];
+  thresholds?: Partial<ThresholdConfig>;
+}
+
+export async function createCompany(input: UpsertInput): Promise<StoredCompany> {
+  if (storageMode() === 'mongodb') {
+    const doc = await CompanyModel.create({
+      ...input.company,
+      periods: input.periods ?? [],
+      peers: input.peers ?? [],
+      thresholds: input.thresholds ?? {},
+    });
+    return fromDocument(doc.toObject());
+  }
+
+  const now = new Date().toISOString();
+  const id = `mem_${randomUUID().replace(/-/g, '').slice(0, 16)}`;
+  const entry: StoredCompany = {
+    id,
+    company: { ...input.company, id },
+    periods: input.periods ?? [],
+    peers: input.peers ?? [],
+    thresholds: input.thresholds ?? {},
+    createdAt: now,
+    updatedAt: now,
+  };
+  memory.set(id, entry);
+  return entry;
+}
+
+export async function updateCompany(id: string, input: Partial<UpsertInput>): Promise<StoredCompany | null> {
+  if (storageMode() === 'mongodb' && !id.startsWith('mem_')) {
+    const update: Record<string, unknown> = {};
+    if (input.company) Object.assign(update, input.company);
+    if (input.periods) update['periods'] = input.periods;
+    if (input.peers) update['peers'] = input.peers;
+    if (input.thresholds) update['thresholds'] = input.thresholds;
+    delete update['id'];
+
+    const doc = await CompanyModel.findByIdAndUpdate(id, update, { new: true, runValidators: true })
+      .lean()
+      .catch(() => null);
+    return doc ? fromDocument(doc) : null;
+  }
+
+  const existing = memory.get(id);
+  if (!existing) return null;
+  const updated: StoredCompany = {
+    ...existing,
+    company: { ...existing.company, ...(input.company ?? {}), id },
+    periods: input.periods ?? existing.periods,
+    peers: input.peers ?? existing.peers,
+    thresholds: input.thresholds ?? existing.thresholds,
+    updatedAt: new Date().toISOString(),
+  };
+  memory.set(id, updated);
+  return updated;
+}
+
+export async function deleteCompany(id: string): Promise<boolean> {
+  if (storageMode() === 'mongodb' && !id.startsWith('mem_')) {
+    const result = await CompanyModel.findByIdAndDelete(id).catch(() => null);
+    return Boolean(result);
+  }
+  return memory.delete(id);
+}
+
+export async function companyCount(): Promise<number> {
+  if (storageMode() === 'mongodb') return CompanyModel.countDocuments();
+  return memory.size;
+}
+
+/** Convert a stored record into the shape the engine consumes. */
+export function toDataset(entry: StoredCompany): CompanyDataset {
+  return {
+    company: entry.company,
+    periods: entry.periods,
+    peers: entry.peers,
+    thresholds: entry.thresholds,
+  };
+}
