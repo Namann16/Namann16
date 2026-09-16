@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: financial-company-analyzer-api
+    runtime: node
+    rootDir: financial-company-analyzer
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/meta/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CORS_ORIGIN
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "900000"
+      - key: RATE_LIMIT_MAX
+        value: "300"
