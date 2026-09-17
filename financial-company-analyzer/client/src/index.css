@@ -237,4 +237,13 @@
   }
   .feature-card:nth-child(2)::before { @apply bg-positive-500; }
   .feature-card:nth-child(3)::before { @apply bg-caution-500; }
+
+  /* Gives plots a quiet inset surface so the data, not the surrounding card, owns the visual focus. */
+  .chart-frame {
+    @apply rounded-lg px-1 py-1;
+    background: linear-gradient(180deg, rgba(43, 100, 173, 0.035), transparent 72%);
+  }
+  .dark .chart-frame {
+    background: linear-gradient(180deg, rgba(57, 135, 229, 0.08), transparent 72%);
+  }
 }
