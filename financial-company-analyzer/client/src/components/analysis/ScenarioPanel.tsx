@@ -78,10 +78,16 @@ export function ScenarioPanel({
   return (
     <Card
       title="Scenario analysis"
-      description="Test temporary what-if assumptions without changing the saved company data."
+      description="Temporary what-if overlay — it never changes the saved company data."
       actions={result ? <button type="button" className="btn-secondary" onClick={() => setResult(null)}>Clear result</button> : undefined}
     >
       <div className="space-y-3">
+        <div className="rounded-lg border border-caution-200 bg-caution-50/70 px-3 py-2 text-[12px] leading-relaxed text-caution-800 dark:border-caution-700/40 dark:bg-caution-700/10 dark:text-caution-100">
+          <strong>Held-constant assumption:</strong> every line item you do not adjust remains
+          unchanged. For example, increasing revenue while leaving COGS, operating expenses, and
+          tax unchanged implies those costs do not scale with revenue. Adjust the related cost
+          lines too when you want a margin or tax-rate scenario rather than a pure sensitivity test.
+        </div>
         {rows.map((row) => (
           <div key={row.id} className="grid items-end gap-2 sm:grid-cols-[1fr_1.3fr_auto_1fr_auto]">
             <Field label="Period">
