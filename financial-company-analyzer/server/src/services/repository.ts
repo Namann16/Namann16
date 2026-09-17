@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { CompanyDataset, CompanyProfile, FinancialPeriod, PeerCompany, ThresholdConfig } from '@fca/core';
 import { AnalysisSnapshotModel, CompanyModel, UserSettingsModel } from '../models/Company.js';
 import { isDatabaseConnected } from '../db/connect.js';
@@ -237,6 +237,9 @@ const memorySettings: UserSettings = {
   llmNarrativeEnabled: false,
 };
 
+const memorySnapshots = new Map<string, { summary: SnapshotSummary; payload: any; fingerprint: string }>();
+const MAX_SNAPSHOTS_PER_COMPANY = 20;
+
 function fromSettingsDocument(doc: any): UserSettings {
   return {
     key: doc.key ?? 'default',
@@ -297,7 +300,16 @@ function snapshotSummary(doc: any): SnapshotSummary {
 
 export async function createAnalysisSnapshot(companyId: string, analysis: any): Promise<SnapshotSummary> {
   const payload = JSON.parse(JSON.stringify(analysis));
+  const fingerprint = createHash('sha256').update(JSON.stringify({
+    engineVersion: analysis.engineVersion,
+    latestPeriod: analysis.latestPeriod,
+    health: analysis.health,
+    redFlags: analysis.redFlags,
+    metrics: analysis.metrics,
+  })).digest('hex');
   if (storageMode() === 'mongodb') {
+    const existing = await AnalysisSnapshotModel.findOne({ company: companyId, fingerprint }).lean();
+    if (existing) return snapshotSummary(existing);
     const doc = await AnalysisSnapshotModel.create({
       company: companyId,
       engineVersion: analysis.engineVersion,
@@ -306,11 +318,17 @@ export async function createAnalysisSnapshot(companyId: string, analysis: any): 
       healthScore: analysis.health.overall,
       healthLabel: analysis.health.label,
       redFlagCount: analysis.redFlags.length,
+      fingerprint,
       payload,
     });
+    const old = await AnalysisSnapshotModel.find({ company: companyId })
+      .sort({ generatedAt: -1 }).skip(MAX_SNAPSHOTS_PER_COMPANY).select({ _id: 1 }).lean();
+    if (old.length) await AnalysisSnapshotModel.deleteMany({ _id: { $in: old.map((entry) => entry._id) } });
     return snapshotSummary(doc.toObject());
   }
-  return {
+  const existing = [...memorySnapshots.values()].find((entry) => entry.summary.companyId === companyId && entry.fingerprint === fingerprint);
+  if (existing) return existing.summary;
+  const summary = {
     id: `mem_snapshot_${randomUUID().slice(0, 12)}`,
     companyId,
     engineVersion: analysis.engineVersion,
@@ -320,6 +338,12 @@ export async function createAnalysisSnapshot(companyId: string, analysis: any): 
     healthLabel: analysis.health.label,
     redFlagCount: analysis.redFlags.length,
   };
+  memorySnapshots.set(summary.id, { summary, payload, fingerprint });
+  const companySnapshots = [...memorySnapshots.values()]
+    .filter((entry) => entry.summary.companyId === companyId)
+    .sort((a, b) => b.summary.generatedAt.localeCompare(a.summary.generatedAt));
+  companySnapshots.slice(MAX_SNAPSHOTS_PER_COMPANY).forEach((entry) => memorySnapshots.delete(entry.summary.id));
+  return summary;
 }
 
 export async function listAnalysisSnapshots(companyId: string): Promise<SnapshotSummary[]> {
@@ -327,11 +351,17 @@ export async function listAnalysisSnapshots(companyId: string): Promise<Snapshot
     const docs = await AnalysisSnapshotModel.find({ company: companyId }).sort({ generatedAt: -1 }).limit(100).lean();
     return docs.map(snapshotSummary);
   }
-  return [];
+  return [...memorySnapshots.values()]
+    .filter((entry) => entry.summary.companyId === companyId)
+    .sort((a, b) => b.summary.generatedAt.localeCompare(a.summary.generatedAt))
+    .map((entry) => entry.summary);
 }
 
 export async function getAnalysisSnapshot(companyId: string, snapshotId: string): Promise<any | null> {
-  if (storageMode() !== 'mongodb') return null;
+  if (storageMode() !== 'mongodb') {
+    const entry = memorySnapshots.get(snapshotId);
+    return entry?.summary.companyId === companyId ? entry.payload : null;
+  }
   const doc = await AnalysisSnapshotModel.findOne({ _id: snapshotId, company: companyId }).lean();
   return doc?.payload ?? null;
 }

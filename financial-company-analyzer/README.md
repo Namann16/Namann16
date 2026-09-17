@@ -349,10 +349,13 @@ place:
   industry-specific release includes capital intensity (PPE / revenue) for manufacturing,
   automobile, infrastructure, energy, and telecom companies.
 - Quarterly and half-yearly data remains visible as entered. Enable **Annualize interim metrics**
-  in Settings to annualize growth, CAGR, and flow-based days metrics (4x for quarterly, 2x for
-  half-yearly); annual data is unchanged.
+  in Settings to annualize growth, CAGR, turnover, return, and flow-based days metrics (4x for
+  quarterly, 2x for half-yearly); annual data is unchanged.
 - Scenario analysis runs temporary what-if changes against a stored company without persisting
   them, and reports metric, health-score, and red-flag differences.
+- Analysis history keeps the latest 20 distinct engine results per company. Reopening a company
+  does not create a duplicate snapshot, and history also works when the API is using memory
+  storage.
 - There is no authentication; the application is intended to run locally or behind your own
   access control
 - The MongoDB path is covered by unit tests of the document mapping, but the live driver round

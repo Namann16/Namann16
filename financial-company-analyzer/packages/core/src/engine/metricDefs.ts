@@ -152,6 +152,16 @@ function daysBasis(ctx: MetricContext): { days: number; note?: string } {
   };
 }
 
+function annualizedFlow(ctx: MetricContext, key: string): { value: Num; note?: string } {
+  const value = val(ctx.current, key);
+  const factor = ctx.annualizeInterimMetrics ? interimFactor(ctx) : 1;
+  if (!isNum(value) || factor === 1) return { value };
+  return {
+    value: value * factor,
+    note: `Annualized ${key} using a ${factor}x ${ctx.reportingPeriod === 'quarterly' ? 'quarterly' : 'half-yearly'} factor.`,
+  };
+}
+
 function marginOf(ctx: MetricContext, numeratorKey: string): MetricComputation {
   const num = val(ctx.current, numeratorKey);
   const revenue = val(ctx.current, 'revenue');
@@ -173,6 +183,14 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     meaning: 'Total value of goods and services sold in the period.',
     higherIsBetter: true,
     compute: (ctx) => ({ value: val(ctx.current, 'revenue'), inputs: { revenue: val(ctx.current, 'revenue') } }),
+  },
+  {
+    key: 'sameStoreSalesGrowth', label: 'Same-Store Sales Growth', group: 'growth', unit: 'percent',
+    formula: '(Same-Store Revenue − Prior Same-Store Revenue) / Prior Same-Store Revenue',
+    meaning: 'Growth from comparable stores, excluding the effect of openings and closures.',
+    higherIsBetter: true, absoluteChangeOnly: true,
+    supportedIndustries: ['retail', 'fmcg'],
+    compute: (ctx) => growth(ctx, 'sameStoreRevenue'),
   },
   {
     key: 'ebitdaValue', label: 'EBITDA', group: 'profitability', unit: 'currency',
@@ -332,6 +350,36 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     compute: (ctx) => marginOf(ctx, 'netIncome'),
   },
   {
+    key: 'netInterestMargin', label: 'Net Interest Margin', group: 'profitability', unit: 'percent',
+    formula: 'Net Interest Income / Average Interest-Earning Assets',
+    meaning: 'Interest spread earned on a bank’s interest-earning asset base.',
+    higherIsBetter: true, absoluteChangeOnly: true,
+    supportedIndustries: ['banking', 'financial_services'],
+    compute: (ctx) => {
+      const nii = annualizedFlow(ctx, 'netInterestIncome');
+      const assets = avgBalance(ctx, 'interestEarningAssets');
+      return {
+        value: toPercent(safeDivPositiveDenominator(nii.value, assets.value)),
+        inputs: { netInterestIncome: nii.value, ...assets.inputs },
+        ...(assets.note ? { note: assets.note } : {}),
+      };
+    },
+  },
+  {
+    key: 'costToIncome', label: 'Cost-to-Income Ratio', group: 'efficiency', unit: 'percent',
+    formula: 'Operating Expenses / (Net Interest Income + Other Income)',
+    meaning: 'Operating cost required to generate each unit of a bank’s operating income.',
+    higherIsBetter: false, absoluteChangeOnly: true,
+    supportedIndustries: ['banking', 'financial_services'],
+    compute: (ctx) => {
+      const costs = annualizedFlow(ctx, 'operatingExpenses');
+      const nii = annualizedFlow(ctx, 'netInterestIncome');
+      const other = annualizedFlow(ctx, 'otherIncome');
+      const income = sumDefined([nii.value, other.value]);
+      return { value: toPercent(safeDivPositiveDenominator(costs.value, income)), inputs: { operatingExpenses: costs.value, netInterestIncome: nii.value, otherIncome: other.value } };
+    },
+  },
+  {
     key: 'pbtMargin', label: 'PBT Margin', group: 'profitability', unit: 'percent',
     formula: 'Profit Before Tax / Revenue',
     meaning: 'Profitability before tax, isolating operating and financing performance from tax effects.',
@@ -357,33 +405,33 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
   /* ============ Returns ============ */
   {
     key: 'roa', label: 'Return on Assets (ROA)', group: 'returns', unit: 'percent',
-    formula: 'Net Income / Average Total Assets',
+    formula: 'Annualized Net Income / Average Total Assets',
     meaning: 'Profit generated per unit of assets deployed, regardless of how those assets were financed.',
     higherIsBetter: true, absoluteChangeOnly: true,
     compute: (ctx) => {
-      const ni = val(ctx.current, 'netIncome');
+      const ni = annualizedFlow(ctx, 'netIncome');
       const avg = avgBalance(ctx, 'totalAssets');
       return {
-        value: toPercent(safeDivPositiveDenominator(ni, avg.value)),
-        inputs: { netIncome: ni, ...avg.inputs },
+        value: toPercent(safeDivPositiveDenominator(ni.value, avg.value)),
+        inputs: { netIncome: ni.value, ...avg.inputs },
         ...(avg.note ? { note: avg.note } : {}),
       };
     },
   },
   {
     key: 'roe', label: 'Return on Equity (ROE)', group: 'returns', unit: 'percent',
-    formula: '(Net Income − Preferred Dividends) / Average Shareholders’ Equity',
+    formula: '(Annualized Net Income − Preferred Dividends) / Average Shareholders’ Equity',
     meaning: 'Return generated on the capital shareholders have invested in the business.',
     higherIsBetter: true, absoluteChangeOnly: true,
     compute: (ctx) => {
-      const ni = val(ctx.current, 'netIncome');
+      const ni = annualizedFlow(ctx, 'netIncome');
       const pref = val(ctx.current, 'preferredDividends');
-      const attributable = isNum(ni) ? ni - (pref ?? 0) : null;
+      const attributable = isNum(ni.value) ? ni.value - (pref ?? 0) : null;
       const avg = avgBalance(ctx, 'totalEquity');
       const negativeEquity = isNum(avg.value) && avg.value <= 0;
       return {
         value: negativeEquity ? null : toPercent(safeDivPositiveDenominator(attributable, avg.value)),
-        inputs: { netIncome: ni, preferredDividends: pref, ...avg.inputs },
+        inputs: { netIncome: ni.value, preferredDividends: pref, ...avg.inputs },
         ...(negativeEquity
           ? { note: 'Equity is zero or negative, so return on equity has no meaningful interpretation for this period.' }
           : avg.note
@@ -394,11 +442,13 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
   },
   {
     key: 'roic', label: 'Return on Invested Capital (ROIC)', group: 'returns', unit: 'percent',
-    formula: 'NOPAT / Average Invested Capital, where NOPAT = EBIT × (1 − effective tax rate) and Invested Capital = Equity + Total Debt − Cash',
+    formula: 'Annualized NOPAT / Average Invested Capital, where NOPAT = EBIT × (1 − effective tax rate) and Invested Capital = Equity + Total Debt − Cash',
     meaning: 'Return the business earns on all operating capital employed, before financing structure. The core test of whether growth creates value.',
     higherIsBetter: true, absoluteChangeOnly: true,
     compute: (ctx) => {
-      const { value: nopatValue, taxRate } = nopat(ctx.current);
+      const { value: rawNopat, taxRate } = nopat(ctx.current);
+      const factor = ctx.annualizeInterimMetrics ? interimFactor(ctx) : 1;
+      const nopatValue = isNum(rawNopat) ? rawNopat * factor : null;
       const curIC = investedCapital(ctx.current);
       const prevIC = investedCapital(ctx.prior);
       const avgIC = isNum(curIC) && isNum(prevIC) ? average(curIC, prevIC) : curIC;
@@ -422,17 +472,17 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
   },
   {
     key: 'roce', label: 'Return on Capital Employed (ROCE)', group: 'returns', unit: 'percent',
-    formula: 'EBIT / (Total Assets − Total Current Liabilities)',
+    formula: 'Annualized EBIT / (Total Assets − Total Current Liabilities)',
     meaning: 'Pre-tax operating return on the long-term capital financing the business.',
     higherIsBetter: true, absoluteChangeOnly: true,
     compute: (ctx) => {
-      const ebit = val(ctx.current, 'ebit');
+      const ebit = annualizedFlow(ctx, 'ebit');
       const ta = val(ctx.current, 'totalAssets');
       const tcl = val(ctx.current, 'totalCurrentLiabilities');
       const employed = subtract(ta, tcl);
       return {
-        value: toPercent(safeDivPositiveDenominator(ebit, employed)),
-        inputs: { ebit, totalAssets: ta, totalCurrentLiabilities: tcl, 'capital employed': employed },
+        value: toPercent(safeDivPositiveDenominator(ebit.value, employed)),
+        inputs: { ebit: ebit.value, totalAssets: ta, totalCurrentLiabilities: tcl, 'capital employed': employed },
       };
     },
   },
@@ -604,75 +654,75 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
   /* ============ Efficiency ============ */
   {
     key: 'assetTurnover', label: 'Asset Turnover', group: 'efficiency', unit: 'times',
-    formula: 'Revenue / Average Total Assets',
+    formula: 'Annualized Revenue / Average Total Assets',
     meaning: 'Revenue generated per unit of assets. Measures how hard the asset base is working.',
     higherIsBetter: true, absoluteChangeOnly: true,
     compute: (ctx) => {
-      const rev = val(ctx.current, 'revenue');
+      const rev = annualizedFlow(ctx, 'revenue');
       const avg = avgBalance(ctx, 'totalAssets');
       return {
-        value: safeDivPositiveDenominator(rev, avg.value),
-        inputs: { revenue: rev, ...avg.inputs },
+        value: safeDivPositiveDenominator(rev.value, avg.value),
+        inputs: { revenue: rev.value, ...avg.inputs },
         ...(avg.note ? { note: avg.note } : {}),
       };
     },
   },
   {
     key: 'fixedAssetTurnover', label: 'Fixed Asset Turnover', group: 'efficiency', unit: 'times',
-    formula: 'Revenue / Average Net PP&E',
+    formula: 'Annualized Revenue / Average Net PP&E',
     meaning: 'Revenue generated per unit of productive fixed assets.',
     higherIsBetter: true, absoluteChangeOnly: true,
     compute: (ctx) => {
-      const rev = val(ctx.current, 'revenue');
+      const rev = annualizedFlow(ctx, 'revenue');
       const avg = avgBalance(ctx, 'ppe');
       return {
-        value: safeDivPositiveDenominator(rev, avg.value),
-        inputs: { revenue: rev, ...avg.inputs },
+        value: safeDivPositiveDenominator(rev.value, avg.value),
+        inputs: { revenue: rev.value, ...avg.inputs },
         ...(avg.note ? { note: avg.note } : {}),
       };
     },
   },
   {
     key: 'inventoryTurnover', label: 'Inventory Turnover', group: 'efficiency', unit: 'times',
-    formula: 'COGS / Average Inventory',
+    formula: 'Annualized COGS / Average Inventory',
     meaning: 'Number of times inventory is sold and replaced during the period.',
     higherIsBetter: true, absoluteChangeOnly: true,
     compute: (ctx) => {
-      const cogs = val(ctx.current, 'cogs');
+      const cogs = annualizedFlow(ctx, 'cogs');
       const avg = avgBalance(ctx, 'inventory');
       return {
-        value: safeDivPositiveDenominator(cogs, avg.value),
-        inputs: { cogs, ...avg.inputs },
+        value: safeDivPositiveDenominator(cogs.value, avg.value),
+        inputs: { cogs: cogs.value, ...avg.inputs },
         ...(avg.note ? { note: avg.note } : {}),
       };
     },
   },
   {
     key: 'receivablesTurnover', label: 'Receivables Turnover', group: 'efficiency', unit: 'times',
-    formula: 'Revenue / Average Accounts Receivable',
+    formula: 'Annualized Revenue / Average Accounts Receivable',
     meaning: 'Number of times receivables are collected during the period.',
     higherIsBetter: true, absoluteChangeOnly: true,
     compute: (ctx) => {
-      const rev = val(ctx.current, 'revenue');
+      const rev = annualizedFlow(ctx, 'revenue');
       const avg = avgBalance(ctx, 'accountsReceivable');
       return {
-        value: safeDivPositiveDenominator(rev, avg.value),
-        inputs: { revenue: rev, ...avg.inputs },
+        value: safeDivPositiveDenominator(rev.value, avg.value),
+        inputs: { revenue: rev.value, ...avg.inputs },
         ...(avg.note ? { note: avg.note } : {}),
       };
     },
   },
   {
     key: 'payablesTurnover', label: 'Payables Turnover', group: 'efficiency', unit: 'times',
-    formula: 'COGS / Average Accounts Payable',
+    formula: 'Annualized COGS / Average Accounts Payable',
     meaning: 'Number of times supplier balances are settled during the period.',
     absoluteChangeOnly: true,
     compute: (ctx) => {
-      const cogs = val(ctx.current, 'cogs');
+      const cogs = annualizedFlow(ctx, 'cogs');
       const avg = avgBalance(ctx, 'accountsPayable');
       return {
-        value: safeDivPositiveDenominator(cogs, avg.value),
-        inputs: { cogs, ...avg.inputs },
+        value: safeDivPositiveDenominator(cogs.value, avg.value),
+        inputs: { cogs: cogs.value, ...avg.inputs },
         ...(avg.note ? { note: avg.note } : {}),
       };
     },
@@ -681,7 +731,7 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
   /* ============ Working capital ============ */
   {
     key: 'dso', label: 'Days Sales Outstanding (DSO)', group: 'workingCapital', unit: 'days',
-    formula: '(Average Accounts Receivable / Revenue) × 365',
+    formula: '(Average Accounts Receivable / Annualized Revenue) × 365',
     meaning: 'Average number of days it takes to collect cash from customers after a sale.',
     higherIsBetter: false, absoluteChangeOnly: true,
     compute: (ctx) => {
@@ -698,7 +748,7 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
   },
   {
     key: 'dio', label: 'Days Inventory Outstanding (DIO)', group: 'workingCapital', unit: 'days',
-    formula: '(Average Inventory / COGS) × 365',
+    formula: '(Average Inventory / Annualized COGS) × 365',
     meaning: 'Average number of days inventory sits before it is sold.',
     higherIsBetter: false, absoluteChangeOnly: true,
     compute: (ctx) => {

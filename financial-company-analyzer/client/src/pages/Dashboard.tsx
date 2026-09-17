@@ -7,7 +7,7 @@ import { Badge, Card, EmptyState, PageHeader } from '../components/ui/primitives
 import { ChartPair, FinancialChart } from '../components/charts/Charts';
 import { FlagCard, KpiCard } from '../components/analysis/MetricViews';
 import { ScenarioPanel } from '../components/analysis/ScenarioPanel';
-import { combineSeries, fmtCtx, SENTIMENT_TONE, TREND_LABEL, TREND_TONE } from '../lib/display';
+import { combineSeries, fmtCtx, formatMetric, SENTIMENT_TONE, TREND_LABEL, TREND_TONE } from '../lib/display';
 
 const HEALTH_TONE: Record<string, 'positive' | 'negative' | 'neutral' | 'caution'> = {
   Excellent: 'positive', Strong: 'positive', Healthy: 'positive',
@@ -177,7 +177,11 @@ export default function Dashboard() {
                 <div key={label} className="flex items-center justify-between gap-3 rounded-lg border border-ink-200 bg-ink-50/60 px-3 py-2.5 dark:border-ink-800 dark:bg-ink-950/40">
                   <div className="min-w-0">
                     <p className="label-caps">{label}</p>
-                    <p className="mt-1 text-[12.5px] font-semibold">{series?.latest?.status === 'ok' && series.latest.value !== null ? `${series.latest.value >= 0 ? '' : '−'}${series.latest.value.toLocaleString(undefined, { maximumFractionDigits: 1 })}` : 'n/a'}</p>
+                    <p className="mt-1 text-[12.5px] font-semibold">
+                      {series?.latest?.status === 'ok' && series.latest.value !== null
+                        ? formatMetric(series.latest.value, series.unit, ctx)
+                        : 'n/a'}
+                    </p>
                   </div>
                   <Badge tone={series ? TREND_TONE[series.trend] : 'neutral'}>{series ? TREND_LABEL[series.trend] : 'No data'}</Badge>
                 </div>
