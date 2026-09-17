@@ -80,7 +80,7 @@ export default function LiquiditySolvency() {
         <KpiCard label="Debt / equity" series={metrics['debtToEquity']} company={company} />
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Liquidity ratios" description={`The marked line is the ${thresholds.currentRatioLow.toFixed(1)}x current-ratio minimum configured for this industry.`}>
           <FinancialChart
             data={liquidity}

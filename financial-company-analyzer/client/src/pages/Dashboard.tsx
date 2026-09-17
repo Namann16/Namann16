@@ -141,7 +141,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPI row */}
-      <section aria-label="Key performance indicators" className="grid grid-cols-2 gap-2.5 md:grid-cols-4 xl:grid-cols-6">
+      <section aria-label="Key performance indicators" className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-6">
         <KpiCard label="Revenue" series={metrics['revenue']} company={company} emphasise />
         <KpiCard label="Revenue growth" series={metrics['revenueGrowth']} company={company} />
         <KpiCard label="EBITDA" series={metrics['ebitdaValue']} company={company} />
@@ -150,10 +150,10 @@ export default function Dashboard() {
         <KpiCard label="Net margin" series={metrics['netMargin']} company={company} />
         <KpiCard label="CFO" series={metrics['cfo']} company={company} />
         <KpiCard label="Free cash flow" series={metrics['fcf']} company={company} />
-        <KpiCard label="ROE" series={metrics['roe']} company={company} />
-        <KpiCard label="ROIC" series={metrics['roic']} company={company} />
-        <KpiCard label="Net debt / EBITDA" series={metrics['netDebtToEbitda']} company={company} />
-        <KpiCard label="Current ratio" series={metrics['currentRatio']} company={company} />
+        <KpiCard label="ROE" series={metrics['roe']} company={company} benchmark={{ value: analysis.thresholds.roeStrong, label: `${analysis.thresholds.roeStrong}% strong`, higherIsBetter: true }} />
+        <KpiCard label="ROIC" series={metrics['roic']} company={company} benchmark={{ value: analysis.thresholds.roicHurdle, label: `${analysis.thresholds.roicHurdle}% hurdle`, higherIsBetter: true }} />
+        <KpiCard label="Net debt / EBITDA" series={metrics['netDebtToEbitda']} company={company} benchmark={{ value: analysis.thresholds.netDebtToEbitdaHigh, label: `${analysis.thresholds.netDebtToEbitdaHigh.toFixed(1)}x limit`, higherIsBetter: false }} />
+        <KpiCard label="Current ratio" series={metrics['currentRatio']} company={company} benchmark={{ value: analysis.thresholds.currentRatioStrong, label: `${analysis.thresholds.currentRatioStrong.toFixed(1)}x strong`, higherIsBetter: true }} />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
@@ -232,7 +232,7 @@ export default function Dashboard() {
       </Card>
 
       {/* Charts */}
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Revenue and EBITDA" description="Absolute levels above, and the margin they imply below, over the same years.">
           <ChartPair
             ctx={ctx}

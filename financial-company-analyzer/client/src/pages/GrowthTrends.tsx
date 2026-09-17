@@ -109,7 +109,7 @@ export default function GrowthTrends() {
         </div>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Revenue trend" description="The level above, the year-on-year rate below. Reading down the shared years shows whether growth is accelerating or merely continuing.">
           <ChartPair
             ctx={ctx}
