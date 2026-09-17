@@ -6,6 +6,7 @@ import { api, type SnapshotSummary } from '../api/client';
 import { Badge, Card, EmptyState, PageHeader } from '../components/ui/primitives';
 import { ChartPair, FinancialChart } from '../components/charts/Charts';
 import { FlagCard, KpiCard } from '../components/analysis/MetricViews';
+import { ScenarioPanel } from '../components/analysis/ScenarioPanel';
 import { combineSeries, fmtCtx, SENTIMENT_TONE, TREND_LABEL, TREND_TONE } from '../lib/display';
 
 const HEALTH_TONE: Record<string, 'positive' | 'negative' | 'neutral' | 'caution'> = {
@@ -120,6 +121,15 @@ export default function Dashboard() {
           </div>
         )}
       </Card>
+
+      {meta?.lineItems && (
+        <ScenarioPanel
+          companyId={current.id}
+          company={company}
+          periods={current.periods}
+          lineItems={meta.lineItems.filter((item) => !item.derivable)}
+        />
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-positive-200 bg-positive-50/70 px-3 py-2 text-[12px] text-positive-800 dark:border-positive-700/40 dark:bg-positive-700/10 dark:text-positive-100">
         <span className="flex items-center gap-2">
