@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { unitsLabel } from '@fca/core';
 import { useWorkspace } from '../state/WorkspaceContext';
 import { Badge, Card, EmptyState, PageHeader } from '../components/ui/primitives';
-import { FinancialChart } from '../components/charts/Charts';
+import { ChartPair, FinancialChart } from '../components/charts/Charts';
 import { FlagCard, KpiCard } from '../components/analysis/MetricViews';
 import { combineSeries, fmtCtx, SENTIMENT_TONE } from '../lib/display';
 
@@ -126,17 +126,23 @@ export default function Dashboard() {
 
       {/* Charts */}
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card title="Revenue and EBITDA" description="Bars show absolute levels; the line shows EBITDA margin on the right axis.">
-          <FinancialChart
-            data={revenueEbitda}
-            unit="currency"
-            rightUnit="percent"
+        <Card title="Revenue and EBITDA" description="Absolute levels above, and the margin they imply below, over the same years.">
+          <ChartPair
             ctx={ctx}
-            series={[
-              { key: 'revenue', label: 'Revenue', type: 'bar', unit: 'currency' },
-              { key: 'ebitda', label: 'EBITDA', type: 'bar', unit: 'currency' },
-              { key: 'margin', label: 'EBITDA margin', type: 'line', unit: 'percent', axis: 'right' },
-            ]}
+            primary={{
+              data: revenueEbitda,
+              unit: 'currency',
+              series: [
+                { key: 'revenue', label: 'Revenue', type: 'bar', slot: 0 },
+                { key: 'ebitda', label: 'EBITDA', type: 'bar', slot: 1 },
+              ],
+            }}
+            secondary={{
+              caption: 'EBITDA margin',
+              data: revenueEbitda,
+              unit: 'percent',
+              series: [{ key: 'margin', label: 'EBITDA margin', type: 'line', slot: 2 }],
+            }}
           />
         </Card>
 
@@ -146,9 +152,9 @@ export default function Dashboard() {
             unit="percent"
             ctx={ctx}
             series={[
-              { key: 'gross', label: 'Gross margin', type: 'line' },
-              { key: 'ebitda', label: 'EBITDA margin', type: 'line' },
-              { key: 'net', label: 'Net margin', type: 'line' },
+              { key: 'gross', label: 'Gross margin', type: 'line', slot: 0 },
+              { key: 'ebitda', label: 'EBITDA margin', type: 'line', slot: 1 },
+              { key: 'net', label: 'Net margin', type: 'line', slot: 2 },
             ]}
           />
         </Card>
@@ -159,25 +165,33 @@ export default function Dashboard() {
             unit="currency"
             ctx={ctx}
             series={[
-              { key: 'cfo', label: 'CFO', type: 'bar' },
-              { key: 'cfi', label: 'CFI', type: 'bar' },
-              { key: 'cff', label: 'CFF', type: 'bar' },
-              { key: 'fcf', label: 'Free cash flow', type: 'line' },
+              { key: 'cfo', label: 'CFO', type: 'bar', slot: 0 },
+              { key: 'cfi', label: 'CFI', type: 'bar', slot: 1 },
+              { key: 'cff', label: 'CFF', type: 'bar', slot: 2 },
+              { key: 'fcf', label: 'Free cash flow', type: 'line', slot: 3 },
             ]}
           />
         </Card>
 
-        <Card title="Debt and leverage" description="Total and net debt against the leverage multiple on the right axis.">
-          <FinancialChart
-            data={debt}
-            unit="currency"
-            rightUnit="times"
+        <Card title="Debt and leverage" description={`Borrowings above, and what they represent against earnings below. The line marks the ${analysis.thresholds.netDebtToEbitdaHigh.toFixed(1)}x level treated as elevated for this industry.`}>
+          <ChartPair
             ctx={ctx}
-            series={[
-              { key: 'totalDebt', label: 'Total debt', type: 'bar' },
-              { key: 'netDebt', label: 'Net debt', type: 'bar' },
-              { key: 'leverage', label: 'Net debt / EBITDA', type: 'line', unit: 'times', axis: 'right' },
-            ]}
+            primary={{
+              caption: 'Total and net debt',
+              data: debt,
+              unit: 'currency',
+              series: [
+                { key: 'totalDebt', label: 'Total debt', type: 'bar', slot: 0 },
+                { key: 'netDebt', label: 'Net debt', type: 'bar', slot: 1 },
+              ],
+            }}
+            secondary={{
+              caption: 'Net debt / EBITDA',
+              data: debt,
+              unit: 'times',
+              series: [{ key: 'leverage', label: 'Net debt / EBITDA', type: 'line', slot: 2 }],
+              reference: { value: analysis.thresholds.netDebtToEbitdaHigh, label: `${analysis.thresholds.netDebtToEbitdaHigh.toFixed(1)}x elevated` },
+            }}
           />
         </Card>
 
@@ -187,10 +201,10 @@ export default function Dashboard() {
             unit="days"
             ctx={ctx}
             series={[
-              { key: 'dso', label: 'DSO', type: 'line' },
-              { key: 'dio', label: 'DIO', type: 'line' },
-              { key: 'dpo', label: 'DPO', type: 'line' },
-              { key: 'ccc', label: 'Cash conversion cycle', type: 'line' },
+              { key: 'dso', label: 'DSO', type: 'line', slot: 0 },
+              { key: 'dio', label: 'DIO', type: 'line', slot: 1 },
+              { key: 'dpo', label: 'DPO', type: 'line', slot: 2 },
+              { key: 'ccc', label: 'Cash conversion cycle', type: 'line', slot: 3 },
             ]}
           />
         </Card>
@@ -201,9 +215,9 @@ export default function Dashboard() {
             unit="percent"
             ctx={ctx}
             series={[
-              { key: 'roe', label: 'ROE', type: 'line' },
-              { key: 'roic', label: 'ROIC', type: 'line' },
-              { key: 'roa', label: 'ROA', type: 'line' },
+              { key: 'roe', label: 'ROE', type: 'line', slot: 0 },
+              { key: 'roic', label: 'ROIC', type: 'line', slot: 1 },
+              { key: 'roa', label: 'ROA', type: 'line', slot: 2 },
             ]}
             reference={{ value: analysis.thresholds.roicHurdle, label: `Hurdle ${analysis.thresholds.roicHurdle}%` }}
           />

@@ -1,6 +1,6 @@
 import { useWorkspace } from '../state/WorkspaceContext';
 import { Card, PageHeader } from '../components/ui/primitives';
-import { FinancialChart } from '../components/charts/Charts';
+import { ChartPair, FinancialChart } from '../components/charts/Charts';
 import { AnalysisSection, KpiCard, usableSeries } from '../components/analysis/MetricViews';
 import { combineSeries, fmtCtx } from '../lib/display';
 
@@ -81,15 +81,15 @@ export default function LiquiditySolvency() {
       </section>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card title="Liquidity ratios" description={`The dashed line marks the ${thresholds.currentRatioLow.toFixed(1)}x current-ratio minimum configured for this industry.`}>
+        <Card title="Liquidity ratios" description={`The marked line is the ${thresholds.currentRatioLow.toFixed(1)}x current-ratio minimum configured for this industry.`}>
           <FinancialChart
             data={liquidity}
             unit="times"
             ctx={ctx}
             series={[
-              { key: 'current', label: 'Current ratio', type: 'line' },
-              { key: 'quick', label: 'Quick ratio', type: 'line' },
-              { key: 'cash', label: 'Cash ratio', type: 'line' },
+              { key: 'current', label: 'Current ratio', type: 'line', slot: 0 },
+              { key: 'quick', label: 'Quick ratio', type: 'line', slot: 1 },
+              { key: 'cash', label: 'Cash ratio', type: 'line', slot: 2 },
             ]}
             {...(thresholds.currentRatioLow > 0
               ? { reference: { value: thresholds.currentRatioLow, label: `Minimum ${thresholds.currentRatioLow.toFixed(1)}x` } }
@@ -97,17 +97,25 @@ export default function LiquiditySolvency() {
           />
         </Card>
 
-        <Card title="Debt and leverage" description={`Bars show debt levels; the line shows the leverage multiple against the ${thresholds.netDebtToEbitdaHigh.toFixed(1)}x level treated as elevated.`}>
-          <FinancialChart
-            data={leverage}
-            unit="currency"
-            rightUnit="times"
+        <Card title="Debt and leverage" description={`Borrowings above, and what they represent against earnings below, against the ${thresholds.netDebtToEbitdaHigh.toFixed(1)}x level treated as elevated.`}>
+          <ChartPair
             ctx={ctx}
-            series={[
-              { key: 'totalDebt', label: 'Total debt', type: 'bar' },
-              { key: 'netDebt', label: 'Net debt', type: 'bar' },
-              { key: 'leverage', label: 'Net debt / EBITDA', type: 'line', unit: 'times', axis: 'right' },
-            ]}
+            primary={{
+              caption: 'Total and net debt',
+              data: leverage,
+              unit: 'currency',
+              series: [
+                { key: 'totalDebt', label: 'Total debt', type: 'bar', slot: 0 },
+                { key: 'netDebt', label: 'Net debt', type: 'bar', slot: 1 },
+              ],
+            }}
+            secondary={{
+              caption: 'Net debt / EBITDA',
+              data: leverage,
+              unit: 'times',
+              series: [{ key: 'leverage', label: 'Net debt / EBITDA', type: 'line', slot: 2 }],
+              reference: { value: thresholds.netDebtToEbitdaHigh, label: `${thresholds.netDebtToEbitdaHigh.toFixed(1)}x elevated` },
+            }}
           />
         </Card>
 
@@ -118,8 +126,8 @@ export default function LiquiditySolvency() {
             ctx={ctx}
             height={240}
             series={[
-              { key: 'coverage', label: 'Interest coverage', type: 'line' },
-              { key: 'debtToEquity', label: 'Debt / equity', type: 'line' },
+              { key: 'coverage', label: 'Interest coverage', type: 'line', slot: 0 },
+              { key: 'debtToEquity', label: 'Debt / equity', type: 'line', slot: 1 },
             ]}
             reference={{ value: thresholds.interestCoverageLow, label: `Weak below ${thresholds.interestCoverageLow.toFixed(1)}x` }}
           />

@@ -38,12 +38,24 @@ export default {
         numeric: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
       },
       fontSize: {
-        '2xs': ['0.6875rem', { lineHeight: '1rem' }],
+        // A tight scale: financial screens are read in columns, so line-heights stay compact
+        // and the steps between sizes are small enough to keep hierarchy without shouting.
+        '2xs': ['0.6875rem', { lineHeight: '0.95rem', letterSpacing: '0.02em' }],
+        xs: ['0.75rem', { lineHeight: '1.05rem' }],
+        sm: ['0.8125rem', { lineHeight: '1.2rem' }],
+        base: ['0.875rem', { lineHeight: '1.35rem' }],
+        kpi: ['1.375rem', { lineHeight: '1.6rem', letterSpacing: '-0.02em' }],
+        'kpi-lg': ['1.75rem', { lineHeight: '2rem', letterSpacing: '-0.025em' }],
+        display: ['1.5rem', { lineHeight: '1.85rem', letterSpacing: '-0.02em' }],
       },
       boxShadow: {
-        card: '0 1px 2px rgba(16, 24, 40, 0.05)',
-        raised: '0 4px 14px -4px rgba(16, 24, 40, 0.12)',
+        // Elevation is carried mostly by the hairline border; the shadow only lifts the card
+        // off the page plane a little, so dense screens stay calm.
+        card: '0 1px 2px 0 rgba(16, 24, 40, 0.04)',
+        raised: '0 8px 24px -8px rgba(16, 24, 40, 0.18), 0 2px 6px -2px rgba(16, 24, 40, 0.08)',
+        inset: 'inset 0 1px 0 0 rgba(255, 255, 255, 0.6)',
       },
+      transitionDuration: { 150: '150ms' },
     },
   },
   plugins: [],

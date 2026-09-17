@@ -1,50 +1,63 @@
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line, LineChart,
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import type { MetricUnit } from '@fca/core';
-import { CHART_COLORS, compactNumber, formatMetric } from '../../lib/display';
+import { CHROME, seriesColor, STATUS_COLORS, currentMode, type ChartMode } from '../../lib/chartTheme';
+import { compactNumber, formatMetric } from '../../lib/display';
 import { EmptyState } from '../ui/primitives';
 
 /**
  * Chart primitives.
  *
- * Every chart takes a unit so the axis, tooltip and labels agree with the metric being shown.
- * Periods that could not be calculated are dropped rather than plotted as zero, which would
- * misrepresent missing data as a real collapse in a value.
+ * Deliberately there is no second y-axis. Plotting two different scales on one plot invents a
+ * correlation the data does not contain: the alignment of the two axes is arbitrary, so the reader
+ * sees a relationship that is an artefact of the chosen scales. Where a level and a rate belong
+ * together — revenue and its growth rate, debt and its leverage multiple — they are drawn as a
+ * pair of charts sharing an x-axis (`ChartPair`), which shows the same relationship honestly.
+ *
+ * Periods where a metric could not be calculated are dropped rather than plotted as zero, so a gap
+ * in the data never reads as a collapse in the value.
  */
+
+/** Re-renders charts when the light/dark class changes, so colours follow the theme. */
+export function useChartMode(): ChartMode {
+  const [mode, setMode] = useState<ChartMode>(currentMode);
+  useEffect(() => {
+    const observer = new MutationObserver(() => setMode(currentMode()));
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+  return mode;
+}
 
 export interface ChartContext {
   currency?: string;
   units?: 'units' | 'thousands' | 'lakhs' | 'millions' | 'crores' | 'billions';
 }
 
-interface SeriesSpec {
+export interface SeriesSpec {
   key: string;
   label: string;
+  /** Fixed slot index. Pass it explicitly so a series keeps its colour when others are removed. */
+  slot?: number;
   color?: string;
-  unit?: MetricUnit;
-  /** Render this series on the right-hand axis. */
-  axis?: 'left' | 'right';
   type?: 'line' | 'bar' | 'area';
 }
 
-interface BaseProps {
+interface ChartProps {
   data: Record<string, string | number | null>[];
   series: SeriesSpec[];
+  /** Every series on a chart shares one unit — that is what makes a single axis correct. */
   unit: MetricUnit;
   ctx?: ChartContext;
   height?: number;
-  /** Unit for the right-hand axis, when a second axis is in use. */
-  rightUnit?: MetricUnit;
   emptyMessage?: string;
   stacked?: boolean;
-  /** Draw a reference line at this value on the left axis, e.g. a threshold. */
+  /** A threshold line, e.g. a configured leverage limit. Drawn in the warning status colour. */
   reference?: { value: number; label: string };
 }
-
-const axisStyle = { fontSize: 11, fill: 'currentColor' } as const;
-const gridStroke = 'currentColor';
 
 function tickFormatter(unit: MetricUnit) {
   return (value: number) => {
@@ -58,22 +71,33 @@ function tickFormatter(unit: MetricUnit) {
   };
 }
 
-function ChartTooltip({ active, payload, label, ctx, unit, rightUnit, series }: any) {
+function hasData(data: ChartProps['data'], series: SeriesSpec[]): boolean {
+  return data.some((row) => series.some((s) => typeof row[s.key] === 'number'));
+}
+
+function colourFor(spec: SeriesSpec, index: number, mode: ChartMode): string {
+  return spec.color ?? seriesColor(mode, spec.slot ?? index);
+}
+
+function ChartTooltip({ active, payload, label, ctx, unit, series, mode }: any) {
   if (!active || !payload?.length) return null;
+  const chrome = CHROME[mode as ChartMode];
   return (
-    <div className="rounded-md border border-ink-200 bg-white px-3 py-2 text-[12px] shadow-raised dark:border-ink-700 dark:bg-ink-900">
-      <p className="mb-1 font-semibold text-ink-900 dark:text-ink-100">{label}</p>
+    <div
+      className="rounded-lg border px-3 py-2 text-[12px] shadow-raised"
+      style={{ background: chrome.surface, borderColor: chrome.grid }}
+    >
+      <p className="mb-1.5 font-semibold" style={{ color: chrome.label }}>{label}</p>
       {payload.map((entry: any) => {
         const spec = series.find((s: SeriesSpec) => s.key === entry.dataKey);
-        const entryUnit: MetricUnit = spec?.unit ?? (spec?.axis === 'right' ? (rightUnit ?? unit) : unit);
         return (
-          <p key={entry.dataKey} className="flex items-center justify-between gap-4">
-            <span className="flex items-center gap-1.5 text-ink-600 dark:text-ink-300">
+          <p key={entry.dataKey} className="flex items-center justify-between gap-5 leading-relaxed">
+            <span className="flex items-center gap-1.5" style={{ color: chrome.tick }}>
               <span className="inline-block h-2 w-2 rounded-sm" style={{ background: entry.color }} />
               {spec?.label ?? entry.dataKey}
             </span>
-            <span className="tnum font-semibold text-ink-900 dark:text-ink-100">
-              {entry.value === null || entry.value === undefined ? 'n/a' : formatMetric(entry.value, entryUnit, ctx ?? {})}
+            <span className="tnum font-semibold" style={{ color: chrome.label }}>
+              {entry.value === null || entry.value === undefined ? 'n/a' : formatMetric(entry.value, unit, ctx ?? {})}
             </span>
           </p>
         );
@@ -82,27 +106,12 @@ function ChartTooltip({ active, payload, label, ctx, unit, rightUnit, series }: 
   );
 }
 
-function hasData(data: BaseProps['data'], series: SeriesSpec[]): boolean {
-  return data.some((row) => series.some((s) => typeof row[s.key] === 'number'));
-}
-
-function commonAxes(unit: MetricUnit, rightUnit: MetricUnit | undefined, needsRight: boolean) {
-  return (
-    <>
-      <CartesianGrid strokeDasharray="2 4" stroke={gridStroke} className="text-ink-200 dark:text-ink-800" vertical={false} />
-      <XAxis dataKey="period" tick={axisStyle} tickLine={false} axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }} className="text-ink-500 dark:text-ink-400" />
-      <YAxis yAxisId="left" tick={axisStyle} tickLine={false} axisLine={false} tickFormatter={tickFormatter(unit)} width={52} className="text-ink-500 dark:text-ink-400" />
-      {needsRight && (
-        <YAxis yAxisId="right" orientation="right" tick={axisStyle} tickLine={false} axisLine={false}
-               tickFormatter={tickFormatter(rightUnit ?? unit)} width={52} className="text-ink-500 dark:text-ink-400" />
-      )}
-    </>
-  );
-}
-
 export function FinancialChart({
-  data, series, unit, ctx, height = 240, rightUnit, emptyMessage, stacked, reference,
-}: BaseProps) {
+  data, series, unit, ctx, height = 240, emptyMessage, stacked, reference,
+}: ChartProps) {
+  const mode = useChartMode();
+  const chrome = CHROME[mode];
+
   if (!hasData(data, series)) {
     return (
       <EmptyState
@@ -112,27 +121,67 @@ export function FinancialChart({
     );
   }
 
-  const needsRight = series.some((s) => s.axis === 'right');
-  const tooltip = <Tooltip content={<ChartTooltip ctx={ctx} unit={unit} rightUnit={rightUnit} series={series} />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />;
-  const legend = series.length > 1
-    ? <Legend verticalAlign="top" align="right" iconType="square" iconSize={8} wrapperStyle={{ fontSize: 11, paddingBottom: 8 }} formatter={(value) => series.find((s) => s.key === value)?.label ?? value} />
-    : null;
+  const axisTick = { fontSize: 11, fill: chrome.tick };
 
+  const axes = (
+    <>
+      {/* Solid hairlines, one shade off the surface: recessive, never dashed. */}
+      <CartesianGrid stroke={chrome.grid} strokeWidth={1} vertical={false} />
+      <XAxis
+        dataKey="period" tick={axisTick} tickLine={false}
+        axisLine={{ stroke: chrome.axis, strokeWidth: 1 }} dy={4}
+      />
+      <YAxis
+        tick={axisTick} tickLine={false} axisLine={false}
+        tickFormatter={tickFormatter(unit)} width={54}
+        // Keep a threshold inside the plot: a reference line beyond the data range would be
+        // clipped away, leaving the caption promising a line the reader cannot see.
+        domain={reference
+          ? [(min: number) => Math.min(min, reference.value), (max: number) => Math.max(max, reference.value)]
+          : undefined}
+      />
+    </>
+  );
+
+  const tooltip = (
+    <Tooltip
+      content={<ChartTooltip ctx={ctx} unit={unit} series={series} mode={mode} />}
+      cursor={{ fill: chrome.grid, fillOpacity: 0.45 }}
+    />
+  );
+
+  // A legend is present whenever identity matters — two or more series — so colour is never the
+  // only thing distinguishing them. A single series is named by the card title instead.
+  const legend = series.length > 1 ? (
+    <Legend
+      verticalAlign="top" align="right" iconType="square" iconSize={8}
+      wrapperStyle={{ fontSize: 11, paddingBottom: 10, color: chrome.tick }}
+      formatter={(value) => <span style={{ color: chrome.tick }}>{series.find((s) => s.key === value)?.label ?? value}</span>}
+    />
+  ) : null;
+
+  const referenceLine = reference ? (
+    <ReferenceLine
+      y={reference.value} stroke={STATUS_COLORS.warning} strokeWidth={1.5}
+      label={{ value: reference.label, fontSize: 10, fill: STATUS_COLORS.warning, position: 'insideTopRight' }}
+    />
+  ) : null;
+
+  const margin = { top: 4, right: 10, left: 0, bottom: 0 };
   const allBars = series.every((s) => s.type === 'bar');
-  const allLines = series.every((s) => !s.type || s.type === 'line');
   const allAreas = series.every((s) => s.type === 'area');
+  const allLines = series.every((s) => !s.type || s.type === 'line');
 
   if (allBars) {
     return (
       <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={data} margin={{ top: 4, right: needsRight ? 4 : 8, left: 0, bottom: 0 }}>
-          {commonAxes(unit, rightUnit, needsRight)}
-          {tooltip}{legend}
-          {reference && <ReferenceLine yAxisId="left" y={reference.value} stroke={CHART_COLORS.caution} strokeDasharray="4 4"
-                                       label={{ value: reference.label, fontSize: 10, fill: CHART_COLORS.caution, position: 'insideTopRight' }} />}
+        <BarChart data={data} margin={margin} barGap={2} barCategoryGap="22%">
+          {axes}{tooltip}{legend}{referenceLine}
           {series.map((s, i) => (
-            <Bar key={s.key} yAxisId={s.axis ?? 'left'} dataKey={s.key} name={s.key} radius={[2, 2, 0, 0]}
-                 stackId={stacked ? 'stack' : undefined} fill={s.color ?? CHART_COLORS.series[i % CHART_COLORS.series.length]} />
+            <Bar
+              key={s.key} dataKey={s.key} name={s.key} radius={[3, 3, 0, 0]}
+              stackId={stacked ? 'stack' : undefined} fill={colourFor(s, i, mode)}
+            />
           ))}
         </BarChart>
       </ResponsiveContainer>
@@ -142,25 +191,27 @@ export function FinancialChart({
   if (allAreas) {
     return (
       <ResponsiveContainer width="100%" height={height}>
-        <AreaChart data={data} margin={{ top: 4, right: needsRight ? 4 : 8, left: 0, bottom: 0 }}>
+        <AreaChart data={data} margin={margin}>
           <defs>
             {series.map((s, i) => {
-              const color = s.color ?? CHART_COLORS.series[i % CHART_COLORS.series.length]!;
+              const colour = colourFor(s, i, mode);
               return (
-                <linearGradient key={s.key} id={`grad-${s.key}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={color} stopOpacity={0.28} />
-                  <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+                <linearGradient key={s.key} id={`fca-grad-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={colour} stopOpacity={0.24} />
+                  <stop offset="100%" stopColor={colour} stopOpacity={0.02} />
                 </linearGradient>
               );
             })}
           </defs>
-          {commonAxes(unit, rightUnit, needsRight)}
-          {tooltip}{legend}
+          {axes}{tooltip}{legend}{referenceLine}
           {series.map((s, i) => {
-            const color = s.color ?? CHART_COLORS.series[i % CHART_COLORS.series.length]!;
+            const colour = colourFor(s, i, mode);
             return (
-              <Area key={s.key} yAxisId={s.axis ?? 'left'} dataKey={s.key} name={s.key} type="monotone"
-                    stroke={color} strokeWidth={2} fill={`url(#grad-${s.key})`} connectNulls dot={{ r: 2.5, strokeWidth: 0, fill: color }} />
+              <Area
+                key={s.key} dataKey={s.key} name={s.key} type="monotone"
+                stroke={colour} strokeWidth={2} fill={`url(#fca-grad-${s.key})`}
+                connectNulls dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: chrome.surface }}
+              />
             );
           })}
         </AreaChart>
@@ -171,16 +222,18 @@ export function FinancialChart({
   if (allLines) {
     return (
       <ResponsiveContainer width="100%" height={height}>
-        <LineChart data={data} margin={{ top: 4, right: needsRight ? 4 : 8, left: 0, bottom: 0 }}>
-          {commonAxes(unit, rightUnit, needsRight)}
-          {tooltip}{legend}
-          {reference && <ReferenceLine yAxisId="left" y={reference.value} stroke={CHART_COLORS.caution} strokeDasharray="4 4"
-                                       label={{ value: reference.label, fontSize: 10, fill: CHART_COLORS.caution, position: 'insideTopRight' }} />}
+        <LineChart data={data} margin={margin}>
+          {axes}{tooltip}{legend}{referenceLine}
           {series.map((s, i) => {
-            const color = s.color ?? CHART_COLORS.series[i % CHART_COLORS.series.length]!;
+            const colour = colourFor(s, i, mode);
             return (
-              <Line key={s.key} yAxisId={s.axis ?? 'left'} dataKey={s.key} name={s.key} type="monotone"
-                    stroke={color} strokeWidth={2} connectNulls dot={{ r: 2.5, strokeWidth: 0, fill: color }} activeDot={{ r: 4 }} />
+              <Line
+                key={s.key} dataKey={s.key} name={s.key} type="monotone"
+                stroke={colour} strokeWidth={2} connectNulls
+                dot={{ r: 2.5, strokeWidth: 0, fill: colour }}
+                // A 2px surface ring keeps overlapping points readable where series cross.
+                activeDot={{ r: 5, strokeWidth: 2, stroke: chrome.surface }}
+              />
             );
           })}
         </LineChart>
@@ -188,22 +241,22 @@ export function FinancialChart({
     );
   }
 
-  // Mixed chart: bars for levels, lines for rates laid over them.
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={data} margin={{ top: 4, right: needsRight ? 4 : 8, left: 0, bottom: 0 }}>
-        {commonAxes(unit, rightUnit, needsRight)}
-        {tooltip}{legend}
-        {reference && <ReferenceLine yAxisId="left" y={reference.value} stroke={CHART_COLORS.caution} strokeDasharray="4 4"
-                                     label={{ value: reference.label, fontSize: 10, fill: CHART_COLORS.caution, position: 'insideTopRight' }} />}
+      <ComposedChart data={data} margin={margin} barGap={2} barCategoryGap="22%">
+        {axes}{tooltip}{legend}{referenceLine}
         {series.map((s, i) => {
-          const color = s.color ?? CHART_COLORS.series[i % CHART_COLORS.series.length]!;
+          const colour = colourFor(s, i, mode);
           if (s.type === 'bar') {
-            return <Bar key={s.key} yAxisId={s.axis ?? 'left'} dataKey={s.key} name={s.key} fill={color} radius={[2, 2, 0, 0]} stackId={stacked ? 'stack' : undefined} />;
+            return (
+              <Bar key={s.key} dataKey={s.key} name={s.key} fill={colour} radius={[3, 3, 0, 0]}
+                   stackId={stacked ? 'stack' : undefined} />
+            );
           }
           return (
-            <Line key={s.key} yAxisId={s.axis ?? 'left'} dataKey={s.key} name={s.key} type="monotone"
-                  stroke={color} strokeWidth={2} connectNulls dot={{ r: 2.5, strokeWidth: 0, fill: color }} />
+            <Line key={s.key} dataKey={s.key} name={s.key} type="monotone" stroke={colour}
+                  strokeWidth={2} connectNulls dot={{ r: 2.5, strokeWidth: 0, fill: colour }}
+                  activeDot={{ r: 5, strokeWidth: 2, stroke: chrome.surface }} />
           );
         })}
       </ComposedChart>
@@ -211,8 +264,44 @@ export function FinancialChart({
   );
 }
 
-/** A compact inline trend line for use inside table rows. */
+/**
+ * Two charts over the same periods, stacked.
+ *
+ * This is the honest replacement for a dual-axis plot: a level and the rate derived from it keep
+ * their own scales and their own axes, and the reader compares them by reading down the shared
+ * x-axis rather than by trusting an arbitrary alignment of two y-scales.
+ */
+export function ChartPair({
+  primary, secondary, ctx, height = 190,
+}: {
+  primary: { caption?: string; data: ChartProps['data']; series: SeriesSpec[]; unit: MetricUnit; stacked?: boolean };
+  secondary: { caption?: string; data: ChartProps['data']; series: SeriesSpec[]; unit: MetricUnit; reference?: ChartProps['reference'] };
+  ctx?: ChartContext;
+  height?: number;
+}) {
+  return (
+    <div className="space-y-3">
+      <div>
+        {primary.caption && <p className="label-caps mb-1">{primary.caption}</p>}
+        <FinancialChart
+          data={primary.data} series={primary.series} unit={primary.unit}
+          ctx={ctx} height={height} {...(primary.stacked ? { stacked: true } : {})}
+        />
+      </div>
+      <div className="border-t border-ink-100 pt-3 dark:border-ink-800/60">
+        {secondary.caption && <p className="label-caps mb-1">{secondary.caption}</p>}
+        <FinancialChart
+          data={secondary.data} series={secondary.series} unit={secondary.unit}
+          ctx={ctx} height={height} {...(secondary.reference ? { reference: secondary.reference } : {})}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** A compact inline trend line for table rows. Decorative context, not a substitute for the value. */
 export function Sparkline({ values, tone = 'accent' }: { values: (number | null)[]; tone?: 'accent' | 'positive' | 'negative' }) {
+  const mode = useChartMode();
   const points = values.filter((v): v is number => typeof v === 'number');
   if (points.length < 2) return <span className="text-2xs text-ink-400">—</span>;
 
@@ -226,11 +315,15 @@ export function Sparkline({ values, tone = 'accent' }: { values: (number | null)
     .map((v, i) => `${i === 0 ? 'M' : 'L'}${(i * step).toFixed(1)},${(height - ((v - min) / range) * height).toFixed(1)}`)
     .join(' ');
 
-  const stroke = tone === 'positive' ? CHART_COLORS.positive : tone === 'negative' ? CHART_COLORS.negative : CHART_COLORS.secondary;
+  const stroke = tone === 'positive' ? STATUS_COLORS.good : tone === 'negative' ? STATUS_COLORS.critical : seriesColor(mode, 0);
 
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="inline-block align-middle" aria-hidden="true">
       <path d={path} fill="none" stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
+}
+
+export function ChartNote({ children }: { children: ReactNode }) {
+  return <p className="mt-2 text-2xs leading-relaxed text-ink-500 dark:text-ink-400">{children}</p>;
 }

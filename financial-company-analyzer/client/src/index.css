@@ -10,6 +10,9 @@
 
   body {
     @apply bg-ink-50 text-ink-900 font-sans text-[13px] antialiased;
+    /* Contextual alternates off: financial text has no need for ligature substitutions
+       that can alter how a figure or a code reads. */
+    font-feature-settings: 'calt' 0;
   }
 
   .dark body {
@@ -37,10 +40,21 @@
 
 @layer components {
   .surface {
-    @apply bg-white border border-ink-200 rounded-lg shadow-card;
+    @apply bg-white border border-ink-200/80 rounded-xl shadow-card;
   }
   .dark .surface {
-    @apply bg-ink-900 border-ink-800/60;
+    @apply bg-ink-900 border-ink-800/70;
+  }
+
+  /* A card that responds to pointer interaction — used for the actionable tiles on Home. */
+  .surface-interactive {
+    @apply surface transition-all duration-150;
+  }
+  .surface-interactive:hover {
+    @apply border-accent-300 shadow-raised -translate-y-px;
+  }
+  .dark .surface-interactive:hover {
+    @apply border-accent-600;
   }
 
   .label-caps {
@@ -48,6 +62,20 @@
   }
   .dark .label-caps {
     @apply text-ink-400;
+  }
+
+  /* KPI tile: the figure dominates, the label recedes, the delta sits quietly beneath. */
+  .kpi-value {
+    @apply text-kpi font-semibold text-ink-900 tnum;
+  }
+  .dark .kpi-value {
+    @apply text-ink-50;
+  }
+  .kpi-value-muted {
+    @apply text-kpi font-semibold text-ink-400 tnum;
+  }
+  .dark .kpi-value-muted {
+    @apply text-ink-600;
   }
 
   /* Dense financial table defaults, shared by every statement and ratio grid. */
@@ -63,10 +91,11 @@
     @apply border-ink-800/60;
   }
   .fin-table thead th {
-    @apply sticky top-0 z-10 bg-ink-50 text-2xs font-semibold uppercase tracking-wider text-ink-500 border-b-2 border-ink-300;
+    @apply sticky top-0 z-20 bg-ink-50/95 backdrop-blur text-2xs font-semibold uppercase tracking-wider
+           text-ink-500 border-b border-ink-300;
   }
   .dark .fin-table thead th {
-    @apply bg-ink-900 text-ink-400 border-ink-700;
+    @apply bg-ink-900/95 text-ink-400 border-ink-700;
   }
   .fin-table tbody th,
   .fin-table thead th:first-child {
@@ -78,6 +107,40 @@
   .dark .fin-table tbody tr:hover {
     @apply bg-ink-800/40;
   }
+  /* Keeps the line-item column in view while the year columns scroll horizontally, so a figure
+     is never stranded without its row label. Applied to both the header cell and body cells so
+     the corner stays covered. */
+  .fin-table.sticky-labels thead th:first-child,
+  .fin-table.sticky-labels tbody th:first-child {
+    @apply sticky left-0 z-10 bg-white;
+  }
+  .dark .fin-table.sticky-labels thead th:first-child,
+  .dark .fin-table.sticky-labels tbody th:first-child {
+    @apply bg-ink-900;
+  }
+  .fin-table.sticky-labels thead th:first-child {
+    @apply z-30 bg-ink-50;
+  }
+  .dark .fin-table.sticky-labels thead th:first-child {
+    @apply bg-ink-900;
+  }
+  /* A hairline that marks where the frozen column ends. */
+  .fin-table.sticky-labels thead th:first-child::after,
+  .fin-table.sticky-labels tbody th:first-child::after {
+    content: '';
+    @apply absolute right-0 top-0 h-full w-px bg-ink-200;
+  }
+  .dark .fin-table.sticky-labels thead th:first-child::after,
+  .dark .fin-table.sticky-labels tbody th:first-child::after {
+    @apply bg-ink-700;
+  }
+
+  /* Horizontal scroller that shows a soft edge when there is more table to the right. */
+  .table-scroll {
+    @apply overflow-x-auto;
+    scrollbar-width: thin;
+  }
+
   .fin-table tr.row-section td {
     @apply text-left bg-ink-100/70 text-2xs font-semibold uppercase tracking-wider text-ink-500 py-[5px];
   }
@@ -94,11 +157,12 @@
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-[12.5px] font-medium
-           transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-medium
+           transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed
+           min-h-[32px] active:scale-[0.98];
   }
   .btn-primary {
-    @apply btn bg-accent-700 text-white hover:bg-accent-800;
+    @apply btn bg-accent-700 text-white hover:bg-accent-800 shadow-card;
   }
   .btn-secondary {
     @apply btn border border-ink-300 bg-white text-ink-700 hover:bg-ink-100;
@@ -126,9 +190,14 @@
 
   .cell-input {
     @apply w-full bg-transparent px-2 py-1 text-right text-[12.5px] tnum
-           border border-transparent rounded focus:border-accent-400 focus:bg-white focus:outline-none;
+           border border-transparent rounded transition-colors
+           hover:border-ink-200 focus:border-accent-400 focus:bg-accent-50/40 focus:outline-none;
   }
   .dark .cell-input {
-    @apply focus:bg-ink-800;
+    @apply hover:border-ink-700 focus:bg-accent-700/15;
+  }
+  /* The cell the keyboard is on, highlighted even when focus styling is subtle. */
+  .cell-input:focus {
+    @apply ring-1 ring-accent-300;
   }
 }

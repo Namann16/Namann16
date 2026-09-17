@@ -1,6 +1,6 @@
 import { useWorkspace } from '../state/WorkspaceContext';
 import { Card, EmptyState, PageHeader } from '../components/ui/primitives';
-import { FinancialChart } from '../components/charts/Charts';
+import { ChartPair, FinancialChart } from '../components/charts/Charts';
 import { AnalysisSection, FlagCard, KpiCard, usableSeries } from '../components/analysis/MetricViews';
 import { combineSeries, fmtCtx, formatCurrency } from '../lib/display';
 
@@ -99,45 +99,60 @@ export default function CashFlow() {
             unit="currency"
             ctx={ctx}
             series={[
-              { key: 'cfo', label: 'CFO', type: 'bar' },
-              { key: 'cfi', label: 'CFI', type: 'bar' },
-              { key: 'cff', label: 'CFF', type: 'bar' },
-              { key: 'netChange', label: 'Net change in cash', type: 'line' },
+              { key: 'cfo', label: 'CFO', type: 'bar', slot: 0 },
+              { key: 'cfi', label: 'CFI', type: 'bar', slot: 1 },
+              { key: 'cff', label: 'CFF', type: 'bar', slot: 2 },
+              { key: 'netChange', label: 'Net change in cash', type: 'line', slot: 3 },
             ]}
           />
         </Card>
 
-        <Card title="Free cash flow" description="Operating cash before and after capital expenditure, with the FCF margin on the right axis.">
-          <FinancialChart
-            data={freeCashFlow}
-            unit="currency"
-            rightUnit="percent"
+        <Card title="Free cash flow" description="Operating cash before and after capital expenditure, and the share of revenue it represents.">
+          <ChartPair
             ctx={ctx}
-            series={[
-              { key: 'cfo', label: 'CFO', type: 'bar' },
-              { key: 'fcf', label: 'Free cash flow', type: 'bar' },
-              { key: 'fcfMargin', label: 'FCF margin', type: 'line', unit: 'percent', axis: 'right' },
-            ]}
+            primary={{
+              caption: 'CFO and free cash flow',
+              data: freeCashFlow,
+              unit: 'currency',
+              series: [
+                { key: 'cfo', label: 'CFO', type: 'bar', slot: 0 },
+                { key: 'fcf', label: 'Free cash flow', type: 'bar', slot: 1 },
+              ],
+            }}
+            secondary={{
+              caption: 'FCF margin',
+              data: freeCashFlow,
+              unit: 'percent',
+              series: [{ key: 'fcfMargin', label: 'FCF margin', type: 'line', slot: 2 }],
+            }}
           />
         </Card>
 
         <Card
           title="Earnings quality: profit versus cash"
-          description="Net income, EBITDA and CFO side by side. A persistent gap between profit and operating cash is the single most useful earnings-quality signal."
+          description="A persistent gap between profit and operating cash is the single most useful earnings-quality signal. The conversion ratio below restates the same relationship; 1.0x means profit arrived in full as cash."
           className="xl:col-span-2"
         >
-          <FinancialChart
-            data={quality}
-            unit="currency"
-            rightUnit="times"
+          <ChartPair
             ctx={ctx}
-            height={260}
-            series={[
-              { key: 'netIncome', label: 'Net income', type: 'bar' },
-              { key: 'ebitda', label: 'EBITDA', type: 'bar' },
-              { key: 'cfo', label: 'CFO', type: 'bar' },
-              { key: 'conversion', label: 'CFO / net income', type: 'line', unit: 'times', axis: 'right' },
-            ]}
+            height={200}
+            primary={{
+              caption: 'Net income, EBITDA and CFO',
+              data: quality,
+              unit: 'currency',
+              series: [
+                { key: 'netIncome', label: 'Net income', type: 'bar', slot: 0 },
+                { key: 'ebitda', label: 'EBITDA', type: 'bar', slot: 1 },
+                { key: 'cfo', label: 'CFO', type: 'bar', slot: 2 },
+              ],
+            }}
+            secondary={{
+              caption: 'CFO / net income',
+              data: quality,
+              unit: 'times',
+              series: [{ key: 'conversion', label: 'CFO / net income', type: 'line', slot: 3 }],
+              reference: { value: 1, label: '1.0x — profit fully converted' },
+            }}
           />
         </Card>
       </div>

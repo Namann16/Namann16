@@ -1,6 +1,6 @@
 import { useWorkspace } from '../state/WorkspaceContext';
 import { Card, EmptyState, PageHeader } from '../components/ui/primitives';
-import { FinancialChart } from '../components/charts/Charts';
+import { ChartPair, FinancialChart } from '../components/charts/Charts';
 import { AnalysisSection, FlagCard, KpiCard, usableSeries } from '../components/analysis/MetricViews';
 import { combineSeries, fmtCtx, formatCurrency, formatMetric } from '../lib/display';
 
@@ -69,10 +69,10 @@ export default function WorkingCapital() {
             unit="days"
             ctx={ctx}
             series={[
-              { key: 'dso', label: 'DSO', type: 'line' },
-              { key: 'dio', label: 'DIO', type: 'line' },
-              { key: 'dpo', label: 'DPO', type: 'line' },
-              { key: 'ccc', label: 'Cash conversion cycle', type: 'line' },
+              { key: 'dso', label: 'DSO', type: 'line', slot: 0 },
+              { key: 'dio', label: 'DIO', type: 'line', slot: 1 },
+              { key: 'dpo', label: 'DPO', type: 'line', slot: 2 },
+              { key: 'ccc', label: 'Cash conversion cycle', type: 'line', slot: 3 },
             ]}
           />
         </Card>
@@ -86,24 +86,27 @@ export default function WorkingCapital() {
             unit="percent"
             ctx={ctx}
             series={[
-              { key: 'revenue', label: 'Revenue growth', type: 'bar' },
-              { key: 'receivables', label: 'Receivables growth', type: 'bar' },
-              { key: 'inventory', label: 'Inventory growth', type: 'bar' },
+              { key: 'revenue', label: 'Revenue growth', type: 'bar', slot: 0 },
+              { key: 'receivables', label: 'Receivables growth', type: 'bar', slot: 1 },
+              { key: 'inventory', label: 'Inventory growth', type: 'bar', slot: 2 },
             ]}
           />
         </Card>
 
         <Card title="Working-capital intensity" description="Absolute working capital, and how much of each unit of revenue it absorbs." className="xl:col-span-2">
-          <FinancialChart
-            data={intensity}
-            unit="currency"
-            rightUnit="percent"
+          <ChartPair
             ctx={ctx}
-            height={240}
-            series={[
-              { key: 'workingCapital', label: 'Working capital', type: 'bar' },
-              { key: 'intensity', label: 'Working capital / revenue', type: 'line', unit: 'percent', axis: 'right' },
-            ]}
+            primary={{
+              data: intensity,
+              unit: 'currency',
+              series: [{ key: 'workingCapital', label: 'Working capital', type: 'bar', slot: 0 }],
+            }}
+            secondary={{
+              caption: 'Working capital as a share of revenue',
+              data: intensity,
+              unit: 'percent',
+              series: [{ key: 'intensity', label: 'Working capital / revenue', type: 'line', slot: 1 }],
+            }}
           />
         </Card>
       </div>
@@ -132,8 +135,8 @@ export default function WorkingCapital() {
       )}
 
       <Card title="Balances behind the cycle" description="The raw receivables, inventory and payables positions the days measures are calculated from.">
-        <div className="overflow-x-auto">
-          <table className="fin-table">
+        <div className="table-scroll">
+          <table className="fin-table sticky-labels">
             <thead>
               <tr>
                 <th className="text-left">Line item</th>

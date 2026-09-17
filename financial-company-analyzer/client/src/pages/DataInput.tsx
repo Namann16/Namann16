@@ -37,6 +37,9 @@ export default function DataInput() {
   const { current, analysis, meta, setPeriodsLocal, savePeriods, dirty, loading } = useWorkspace();
   const [statement, setStatement] = useState<StatementKey>('income');
   const [cellErrors, setCellErrors] = useState<Record<string, string>>({});
+  const [pasteResult, setPasteResult] = useState<{ filled: number; failures: string[] } | null>(null);
+  /** Bumped after a paste so the uncontrolled cell inputs remount with their new values. */
+  const [gridVersion, setGridVersion] = useState(0);
   const [importState, setImportState] = useState<ParseResponse | null>(null);
   const [importDecisions, setImportDecisions] = useState<Record<string, string | null>>({});
   const [importPeriods, setImportPeriods] = useState<string[]>([]);
@@ -63,6 +66,106 @@ export default function DataInput() {
   }
 
   const ctx = fmtCtx(current.company);
+
+  /* ---------------- Grid navigation ---------------- */
+
+  /**
+   * Move focus between cells with the arrow keys and Enter.
+   *
+   * Cells carry their row and column as data attributes, so navigation is a lookup rather than a
+   * traversal of the DOM — section header rows sit between data rows and would otherwise have to
+   * be skipped over.
+   */
+  const focusCell = (row: number, col: number) => {
+    const target = document.querySelector<HTMLInputElement>(`[data-grid-row="${row}"][data-grid-col="${col}"]`);
+    if (!target) return;
+    target.focus();
+    target.select();
+  };
+
+  const onCellKeyDown = (event: React.KeyboardEvent<HTMLInputElement>, row: number, col: number) => {
+    const lastRow = lineItems.length - 1;
+    const lastCol = periods.length - 1;
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        focusCell(Math.min(row + 1, lastRow), col);
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        focusCell(Math.max(row - 1, 0), col);
+        break;
+      case 'Enter':
+        event.preventDefault();
+        // Commit this cell before moving, so the value is saved even if focus leaves the grid.
+        event.currentTarget.blur();
+        focusCell(event.shiftKey ? Math.max(row - 1, 0) : Math.min(row + 1, lastRow), col);
+        break;
+      case 'ArrowLeft':
+        // Only jump cells from the start of the text, so arrow keys still edit within a number.
+        if (event.currentTarget.selectionStart === 0 && event.currentTarget.selectionEnd === 0) {
+          event.preventDefault();
+          focusCell(row, Math.max(col - 1, 0));
+        }
+        break;
+      case 'ArrowRight': {
+        const atEnd = event.currentTarget.selectionStart === event.currentTarget.value.length;
+        if (atEnd && event.currentTarget.selectionStart === event.currentTarget.selectionEnd) {
+          event.preventDefault();
+          focusCell(row, Math.min(col + 1, lastCol));
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  };
+
+  /**
+   * Paste a block of figures straight from a spreadsheet.
+   *
+   * Excel puts a tab between columns and a newline between rows, so a copied column or block maps
+   * directly onto the grid from the focused cell. Anything that falls outside the grid is ignored
+   * rather than wrapping, and unreadable cells are reported instead of being silently skipped.
+   */
+  const onCellPaste = (event: React.ClipboardEvent<HTMLInputElement>, row: number, col: number) => {
+    const text = event.clipboardData.getData('text/plain');
+    if (!text || !/[\t\r\n]/.test(text.trim())) return; // a single value pastes normally
+
+    event.preventDefault();
+    const grid = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter((line) => line.length > 0);
+
+    const nextPeriods = periods.map((p) => ({ ...p, values: { ...p.values }, sources: { ...p.sources } }));
+    const failures: string[] = [];
+    let filled = 0;
+
+    grid.forEach((line, rowOffset) => {
+      const targetItem = lineItems[row + rowOffset];
+      if (!targetItem) return;
+      line.split('\t').forEach((raw, colOffset) => {
+        const targetPeriod = nextPeriods[col + colOffset];
+        if (!targetPeriod) return;
+        const { value, error } = parseInput(raw);
+        if (error) {
+          failures.push(`${targetItem.label} · ${targetPeriod.label}: ${error}`);
+          return;
+        }
+        if (value === null) {
+          delete targetPeriod.values[targetItem.key];
+          delete targetPeriod.sources[targetItem.key];
+        } else {
+          targetPeriod.values[targetItem.key] = value;
+          targetPeriod.sources[targetItem.key] = 'entered';
+        }
+        filled += 1;
+      });
+    });
+
+    setPeriodsLocal(nextPeriods);
+    setPasteResult({ filled, failures });
+    // The inputs are uncontrolled, so remount them to show the pasted values.
+    setGridVersion((v) => v + 1);
+  };
 
   /* ---------------- Grid editing ---------------- */
 
@@ -221,6 +324,23 @@ export default function DataInput() {
         </Banner>
       )}
 
+      {pasteResult && (
+        <Banner
+          tone={pasteResult.failures.length ? 'caution' : 'positive'}
+          title={`Pasted ${pasteResult.filled} ${pasteResult.filled === 1 ? 'value' : 'values'}`}
+          onDismiss={() => setPasteResult(null)}
+        >
+          {pasteResult.failures.length === 0 ? (
+            <span>Review the figures, then save to recalculate the analysis.</span>
+          ) : (
+            <>
+              <span className="block">{pasteResult.failures.length} cells could not be read and were left unchanged:</span>
+              {pasteResult.failures.slice(0, 4).map((failure, i) => <span key={i} className="block">• {failure}</span>)}
+            </>
+          )}
+        </Banner>
+      )}
+
       {importResult && (
         <Banner tone={importResult.warnings.length ? 'caution' : 'positive'} title="Import complete" onDismiss={() => setImportResult(null)}>
           <span className="block">
@@ -262,15 +382,18 @@ export default function DataInput() {
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-2 text-2xs text-ink-500 dark:text-ink-400">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-ink-500 dark:text-ink-400">
                 <span className="flex items-center gap-1"><SourceDot source="entered" /> entered</span>
                 <span className="flex items-center gap-1"><SourceDot source="calculated" /> calculated</span>
+                <span className="hidden sm:inline">
+                  Arrow keys move · <kbd className="rounded border border-ink-300 px-1 dark:border-ink-600">Enter</kbd> next row · paste a column from Excel
+                </span>
                 <button type="button" className="btn-secondary" onClick={addPeriod}>Add year</button>
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="fin-table">
+            <div className="table-scroll">
+              <table className="fin-table sticky-labels">
                 <thead>
                   <tr>
                     <th className="text-left" style={{ minWidth: 300 }}>Line item</th>
@@ -294,13 +417,15 @@ export default function DataInput() {
                   </tr>
                 </thead>
                 <tbody>
-                  {lineItems.map((item: LineItemDef) => {
+                  {lineItems.map((item: LineItemDef, rowIndex: number) => {
                     const rows = [];
                     if (item.section !== section) {
                       section = item.section;
                       rows.push(
                         <tr key={`section-${item.section}`} className="row-section">
-                          <td colSpan={periods.length + 1}>{item.section}</td>
+                          <td colSpan={periods.length + 1}>
+                            <span className="sticky left-3 inline-block">{item.section}</span>
+                          </td>
                         </tr>,
                       );
                     }
@@ -312,7 +437,7 @@ export default function DataInput() {
                             {item.derivable && <Badge tone="neutral">derived if blank</Badge>}
                           </span>
                         </th>
-                        {periods.map((period) => {
+                        {periods.map((period, colIndex) => {
                           const analysed = analysis?.statements.find((p) => p.label === period.label);
                           const entered = period.values[item.key];
                           const derived = analysed && typeof analysed.values[item.key] === 'number' && analysed.sources[item.key] === 'calculated';
@@ -321,12 +446,18 @@ export default function DataInput() {
                             <td key={period.label} className="p-0">
                               <div className="relative">
                                 <input
+                                  key={`${item.key}-${period.label}-${gridVersion}`}
+                                  data-grid-row={rowIndex}
+                                  data-grid-col={colIndex}
                                   className={`cell-input ${derived && typeof entered !== 'number' ? 'pr-4' : ''} ${
                                     cellErrors[errorKey] ? 'border-negative-400 bg-negative-50' : ''
                                   }`}
                                   defaultValue={typeof entered === 'number' ? String(entered) : ''}
                                   placeholder={derived ? formatCurrency(analysed!.values[item.key] as number, ctx) : ''}
                                   onBlur={(e) => updateCell(period.label, item.key, e.target.value)}
+                                  onKeyDown={(e) => onCellKeyDown(e, rowIndex, colIndex)}
+                                  onPaste={(e) => onCellPaste(e, rowIndex, colIndex)}
+                                  onFocus={(e) => e.currentTarget.select()}
                                   inputMode="decimal"
                                   aria-label={`${item.label} for ${period.label}`}
                                   title={
