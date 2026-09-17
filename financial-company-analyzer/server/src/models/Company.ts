@@ -44,6 +44,7 @@ const CompanySchema = new Schema(
     currencyLabel: { type: String, default: null, maxlength: 20 },
     fiscalYearEnd: { type: String, default: null, maxlength: 40 },
     reportingPeriod: { type: String, enum: ['annual', 'half_yearly', 'quarterly'], default: 'annual' },
+    annualizeInterimMetrics: { type: Boolean, default: false },
     units: { type: String, required: true, default: 'units' },
     ticker: { type: String, default: null, maxlength: 20 },
     benchmark: { type: String, default: null, maxlength: 80 },

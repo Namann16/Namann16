@@ -8,6 +8,7 @@ import { analysisRouter, companiesRouter } from './routes/companies.js';
 import { importsRouter } from './routes/imports.js';
 import { exportsRouter } from './routes/exports.js';
 import { metaRouter } from './routes/meta.js';
+import { settingsRouter } from './routes/settings.js';
 import { errorHandler, notFoundHandler } from './middleware/errors.js';
 
 export function createApp() {
@@ -42,6 +43,7 @@ export function createApp() {
   );
 
   app.use('/api/meta', metaRouter);
+  app.use('/api/settings', settingsRouter);
   app.use('/api/companies', companiesRouter);
   app.use('/api/analyze', analysisRouter);
   app.use('/api/import', importsRouter);

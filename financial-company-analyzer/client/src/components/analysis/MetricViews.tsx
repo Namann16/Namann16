@@ -172,7 +172,7 @@ export function MetricTable({
           {caption && <caption className="px-3 py-2 text-left text-2xs text-ink-500">{caption}</caption>}
           <thead>
             <tr>
-              {header('label', 'Metric', 'text-left')}
+              {header('label', 'Metric', 'sticky left-0 z-10 bg-white text-left dark:bg-ink-900')}
               {header('latest', 'Latest')}
               {header('change', 'Prior')}
               <th>Change</th>
@@ -188,7 +188,7 @@ export function MetricTable({
               const tone = changeTone(s);
               return (
                 <tr key={s.key}>
-                  <th>
+                  <th className="sticky left-0 z-[1] bg-white dark:bg-ink-900">
                     <span className="inline-flex items-center gap-1">
                       {s.label}
                       <InfoTip label={`About ${s.label}`}>

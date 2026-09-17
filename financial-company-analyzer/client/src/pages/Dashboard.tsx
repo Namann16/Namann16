@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { unitsLabel, type MetricSeries } from '@fca/core';
 import { useWorkspace } from '../state/WorkspaceContext';
+import { api, type SnapshotSummary } from '../api/client';
 import { Badge, Card, EmptyState, PageHeader } from '../components/ui/primitives';
 import { ChartPair, FinancialChart } from '../components/charts/Charts';
 import { FlagCard, KpiCard } from '../components/analysis/MetricViews';
@@ -13,6 +15,11 @@ const HEALTH_TONE: Record<string, 'positive' | 'negative' | 'neutral' | 'caution
 
 export default function Dashboard() {
   const { analysis, current, connecting, meta } = useWorkspace();
+  const [snapshots, setSnapshots] = useState<SnapshotSummary[]>([]);
+  useEffect(() => {
+    if (!current) return;
+    void api.snapshots(current.id).then(({ snapshots: history }) => setSnapshots(history)).catch(() => undefined);
+  }, [current?.id, analysis?.generatedAt]);
   if (!analysis || !current) return null;
 
   const { metrics, company, health, redFlags, positiveSignals, executiveSummary } = analysis;
@@ -85,6 +92,34 @@ export default function Dashboard() {
           </>
         }
       />
+
+      <Card
+        title="Analysis history"
+        description="A snapshot is recorded whenever this analysis is recalculated, so you can see how the assessment changed over time."
+      >
+        {snapshots.length < 2 ? (
+          <p className="text-[12.5px] text-ink-500 dark:text-ink-400">History will appear after the next recalculation.</p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="surface px-3 py-2">
+              <p className="label-caps">Health vs previous snapshot</p>
+              <p className="mt-1 text-lg font-semibold tnum">
+                {snapshots[0]!.healthScore !== null && snapshots[1]!.healthScore !== null
+                  ? `${snapshots[0]!.healthScore - snapshots[1]!.healthScore > 0 ? '+' : ''}${(snapshots[0]!.healthScore - snapshots[1]!.healthScore).toFixed(1)}`
+                  : 'n/a'}
+              </p>
+            </div>
+            <div className="surface px-3 py-2">
+              <p className="label-caps">Current red flags</p>
+              <p className="mt-1 text-lg font-semibold tnum">{snapshots[0]!.redFlagCount}</p>
+            </div>
+            <div className="surface px-3 py-2">
+              <p className="label-caps">Snapshots retained</p>
+              <p className="mt-1 text-lg font-semibold tnum">{snapshots.length}</p>
+            </div>
+          </div>
+        )}
+      </Card>
 
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-positive-200 bg-positive-50/70 px-3 py-2 text-[12px] text-positive-800 dark:border-positive-700/40 dark:bg-positive-700/10 dark:text-positive-100">
         <span className="flex items-center gap-2">
