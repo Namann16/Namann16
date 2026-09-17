@@ -87,6 +87,7 @@ const AnalysisSnapshotSchema = new Schema(
     healthScore: { type: Number, default: null },
     healthLabel: { type: String, default: null },
     redFlagCount: { type: Number, default: 0 },
+    fingerprint: { type: String, required: true, index: true },
     /** Full AnalysisResult, stored opaquely for report regeneration. */
     payload: { type: Schema.Types.Mixed, required: true },
   },

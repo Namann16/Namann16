@@ -29,6 +29,9 @@ export const LINE_ITEMS: LineItemDef[] = [
   { key: 'netIncome', label: 'Net Income (PAT)', statement: 'income', section: 'Below the line', derivable: true },
   { key: 'preferredDividends', label: 'Preferred Dividends', statement: 'income', section: 'Below the line', sign: 'positive' },
   { key: 'minorityInterest', label: 'Minority Interest', statement: 'income', section: 'Below the line', sign: 'any' },
+  { key: 'interestIncome', label: 'Interest Income', statement: 'income', section: 'Banking', sign: 'positive', description: 'Interest earned by a bank or lender.' },
+  { key: 'netInterestIncome', label: 'Net Interest Income', statement: 'income', section: 'Banking', sign: 'any', description: 'Interest income less interest expense.' },
+  { key: 'sameStoreRevenue', label: 'Same-Store Revenue', statement: 'income', section: 'Retail', sign: 'positive', description: 'Revenue from stores open in both comparison periods.' },
 
   /* ---------------- Balance sheet: assets ---------------- */
   { key: 'cash', label: 'Cash & Cash Equivalents', statement: 'balance', section: 'Current assets', sign: 'positive' },
@@ -44,6 +47,7 @@ export const LINE_ITEMS: LineItemDef[] = [
   { key: 'otherNonCurrentAssets', label: 'Other Non-Current Assets', statement: 'balance', section: 'Non-current assets', sign: 'positive' },
   { key: 'totalNonCurrentAssets', label: 'Total Non-Current Assets', statement: 'balance', section: 'Non-current assets', derivable: true },
   { key: 'totalAssets', label: 'Total Assets', statement: 'balance', section: 'Totals', derivable: true },
+  { key: 'interestEarningAssets', label: 'Average Interest-Earning Assets', statement: 'balance', section: 'Banking', sign: 'positive' },
 
   /* ---------------- Balance sheet: liabilities ---------------- */
   { key: 'accountsPayable', label: 'Accounts Payable', statement: 'balance', section: 'Current liabilities', sign: 'positive' },
