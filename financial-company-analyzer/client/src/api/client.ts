@@ -21,6 +21,9 @@ import type {
  */
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
+/** The origin the client calls. Empty means same-origin. Surfaced in error messages. */
+export const API_BASE_URL = BASE;
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -43,8 +46,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       },
     });
   } catch {
+    // A browser reports a blocked cross-origin response and an unreachable host identically,
+    // so this message must not claim to know which of the two happened.
     throw new ApiError(
-      'Could not reach the analysis server. Check that the API is running and try again.',
+      `The request to ${BASE || 'this site'}/api did not complete. The server may be unreachable, ` +
+        'still starting up, or refusing this origin.',
       0,
     );
   }

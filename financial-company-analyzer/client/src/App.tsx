@@ -1,7 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Shell } from './components/layout/Shell';
 import { useWorkspace } from './state/WorkspaceContext';
-import { Banner, EmptyState, Spinner } from './components/ui/primitives';
+import { Banner, Card, EmptyState, Spinner } from './components/ui/primitives';
+import { API_BASE_URL } from './api/client';
 
 import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
@@ -44,17 +45,57 @@ function RequiresCompany({ children }: { children: JSX.Element }) {
 }
 
 export default function App() {
-  const { meta, metaError } = useWorkspace();
+  const { meta, metaError, connecting, retryConnection } = useWorkspace();
 
   if (metaError) {
+    // The same browser error covers "host unreachable" and "origin refused by CORS", so the
+    // guidance below names both rather than asserting a cause it cannot actually distinguish.
+    const isLocal = typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+    const target = API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+
     return (
-      <div className="mx-auto max-w-2xl p-8">
-        <Banner tone="negative" title="Cannot reach the analysis server">
-          {metaError}
-          <span className="mt-2 block">
-            Start the API with <code className="font-mono">npm run dev:server</code> from the project root, then reload this page.
-          </span>
-        </Banner>
+      <div className="mx-auto max-w-2xl p-6">
+        <Card title="Cannot reach the analysis server">
+          <Banner tone="negative">{metaError}</Banner>
+
+          <p className="mt-3 text-[12.5px] leading-relaxed text-ink-700 dark:text-ink-300">
+            The interface loaded, but it could not fetch anything from the API at{' '}
+            <code className="font-mono text-[11.5px]">{target}/api</code>.
+          </p>
+
+          {isLocal ? (
+            <ul className="mt-3 space-y-1.5 text-[12.5px] leading-relaxed text-ink-700 dark:text-ink-300">
+              <li>• Start the API with <code className="font-mono">npm run dev</code> from the project root — that runs the server and this app together.</li>
+              <li>• If the API is on a different port, set <code className="font-mono">PORT</code> in <code className="font-mono">.env</code> to match.</li>
+            </ul>
+          ) : (
+            <ul className="mt-3 space-y-1.5 text-[12.5px] leading-relaxed text-ink-700 dark:text-ink-300">
+              <li>
+                <strong className="font-medium">The API may be asleep.</strong> Free hosting tiers stop the server after a period
+                of inactivity and take up to a minute to start again. Try once more before assuming anything is broken.
+              </li>
+              <li>
+                <strong className="font-medium">This site&rsquo;s address may not be allow-listed.</strong> The API only answers
+                origins named in its <code className="font-mono">CORS_ORIGIN</code> setting. If this page is on a new deployment
+                URL, add <code className="font-mono">{typeof window !== 'undefined' ? window.location.origin : ''}</code> to it.
+              </li>
+              <li>
+                <strong className="font-medium">Check the API directly:</strong> open{' '}
+                <a className="text-accent-600 underline" href={`${target}/api/meta/health`} target="_blank" rel="noreferrer">
+                  {target}/api/meta/health
+                </a>{' '}
+                — if that returns data, the server is fine and the problem is the allow-list above.
+              </li>
+            </ul>
+          )}
+
+          <div className="mt-4 flex items-center gap-2">
+            <button type="button" className="btn-primary" onClick={() => void retryConnection()} disabled={connecting}>
+              {connecting ? 'Connecting…' : 'Try again'}
+            </button>
+            <span className="text-2xs text-ink-500 dark:text-ink-400">Nothing you entered has been lost.</span>
+          </div>
+        </Card>
       </div>
     );
   }
