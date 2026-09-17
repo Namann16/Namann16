@@ -51,9 +51,13 @@ describe('industry-specific metrics', () => {
   it('exposes capital intensity only for supported capital-intensive industries', () => {
     const periods = [period('FY25', 0, { revenue: 100, ppe: 45 })];
     const manufacturing = analyze(dataset(periods, { company: { industry: 'manufacturing' } }));
+    const fmcg = analyze(dataset(periods, { company: { industry: 'fmcg' } }));
+    const pharmaceuticals = analyze(dataset(periods, { company: { industry: 'pharmaceuticals' } }));
     const retail = analyze(dataset(periods, { company: { industry: 'retail' } }));
 
     expect(manufacturing.metrics.capitalIntensity?.latest?.value).toBe(45);
+    expect(fmcg.metrics.capitalIntensity?.latest?.value).toBe(45);
+    expect(pharmaceuticals.metrics.capitalIntensity?.latest?.value).toBe(45);
     expect(retail.metrics.capitalIntensity?.points[0]?.status).toBe('not_applicable');
   });
 
