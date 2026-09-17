@@ -28,32 +28,44 @@ export function KpiCard({
   const tone = series ? changeTone(series) : 'neutral';
 
   return (
-    <div className={`surface px-3 py-2.5 ${emphasise ? 'border-accent-200 dark:border-accent-700/50' : ''}`}>
-      <div className="flex items-center gap-1">
-        <span className="label-caps truncate">{label}</span>
+    <div
+      className={`surface px-3 py-2.5 transition-colors ${
+        emphasise ? 'border-accent-200 bg-accent-50/30 dark:border-accent-700/50 dark:bg-accent-700/10' : ''
+      }`}
+    >
+      <div className="flex items-start justify-between gap-1">
+        <span className="label-caps leading-tight">{label}</span>
         {(series?.meaning || hint) && (
           <InfoTip label={`About ${label}`}>
             <span className="block font-semibold text-ink-900 dark:text-ink-100">{series?.label ?? label}</span>
-            {series?.formula && <span className="mt-1 block text-ink-500 dark:text-ink-400">{series.formula}</span>}
+            {series?.formula && <span className="mt-1 block font-mono text-[11px] text-ink-500 dark:text-ink-400">{series.formula}</span>}
             <span className="mt-1.5 block">{hint ?? series?.meaning}</span>
           </InfoTip>
         )}
       </div>
-      <p className={`mt-1 tnum text-xl font-semibold leading-tight ${available ? 'text-ink-900 dark:text-ink-50' : 'text-ink-400 dark:text-ink-500'}`}>
+
+      <p className={`mt-1.5 ${available ? 'kpi-value' : 'kpi-value-muted'}`}>
         {available ? formatMetric(latest.value, latest.unit, ctx) : 'n/a'}
       </p>
-      <p className="mt-0.5 text-2xs">
+
+      <div className="mt-1 flex items-baseline gap-1 text-2xs">
         {available && series?.change !== null && series?.previous ? (
           <>
-            <span className={`tnum font-semibold ${TONE_TEXT[tone]}`}>{formatChange(series.change, series.unit, ctx)}</span>
-            <span className="ml-1 text-ink-500 dark:text-ink-400">vs {series.previous.period}</span>
+            {/* An arrow alongside the colour, so direction is never carried by hue alone. */}
+            <span className={`font-semibold tnum ${TONE_TEXT[tone]}`}>
+              {tone !== 'neutral' && (
+                <span aria-hidden="true">{(series.change ?? 0) > 0 ? '▲' : '▼'} </span>
+              )}
+              {formatChange(series.change, series.unit, ctx)}
+            </span>
+            <span className="text-ink-500 dark:text-ink-400">vs {series.previous.period}</span>
           </>
         ) : (
           <span className="text-ink-400 dark:text-ink-500">
-            {!available ? (latest?.note ?? 'Not available from the data supplied') : 'No prior period to compare'}
+            {!available ? (latest?.note ? 'Not available' : 'Not available from the data supplied') : 'No prior period'}
           </span>
         )}
-      </p>
+      </div>
     </div>
   );
 }

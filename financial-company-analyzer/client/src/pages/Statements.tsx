@@ -149,8 +149,8 @@ export default function Statements() {
             />
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="fin-table">
+          <div className="table-scroll">
+            <table className="fin-table sticky-labels">
               <thead>
                 <tr>
                   <th className="text-left" style={{ minWidth: 280 }}>Line item</th>
@@ -164,7 +164,9 @@ export default function Statements() {
                     section = item.section;
                     rows.push(
                       <tr key={`section-${item.section}-${statement}`} className="row-section">
-                        <td colSpan={periods.length + 1}>{item.section}</td>
+                        <td colSpan={periods.length + 1}>
+                          <span className="sticky left-3 inline-block">{item.section}</span>
+                        </td>
                       </tr>,
                     );
                   }

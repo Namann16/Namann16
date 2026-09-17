@@ -1,6 +1,6 @@
 import { useWorkspace } from '../state/WorkspaceContext';
 import { Badge, Card, EmptyState, PageHeader } from '../components/ui/primitives';
-import { FinancialChart } from '../components/charts/Charts';
+import { ChartPair, FinancialChart } from '../components/charts/Charts';
 import { AnalysisSection, EvidenceModal, KpiCard, usableSeries } from '../components/analysis/MetricViews';
 import { combineSeries, fmtCtx, formatCurrency, formatMetric } from '../lib/display';
 import { useState } from 'react';
@@ -110,16 +110,20 @@ export default function GrowthTrends() {
       </Card>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card title="Revenue trend" description="Absolute revenue with the year-on-year growth rate on the right axis.">
-          <FinancialChart
-            data={topLine}
-            unit="currency"
-            rightUnit="percent"
+        <Card title="Revenue trend" description="The level above, the year-on-year rate below. Reading down the shared years shows whether growth is accelerating or merely continuing.">
+          <ChartPair
             ctx={ctx}
-            series={[
-              { key: 'revenue', label: 'Revenue', type: 'bar' },
-              { key: 'growth', label: 'Revenue growth', type: 'line', unit: 'percent', axis: 'right' },
-            ]}
+            primary={{
+              data: topLine,
+              unit: 'currency',
+              series: [{ key: 'revenue', label: 'Revenue', type: 'bar', slot: 0 }],
+            }}
+            secondary={{
+              caption: 'Revenue growth (YoY)',
+              data: topLine,
+              unit: 'percent',
+              series: [{ key: 'growth', label: 'Revenue growth', type: 'line', slot: 1 }],
+            }}
           />
         </Card>
 
@@ -129,10 +133,10 @@ export default function GrowthTrends() {
             unit="percent"
             ctx={ctx}
             series={[
-              { key: 'revenue', label: 'Revenue', type: 'line' },
-              { key: 'ebitda', label: 'EBITDA', type: 'line' },
-              { key: 'netIncome', label: 'Net income', type: 'line' },
-              { key: 'cfo', label: 'CFO', type: 'line' },
+              { key: 'revenue', label: 'Revenue', type: 'line', slot: 0 },
+              { key: 'ebitda', label: 'EBITDA', type: 'line', slot: 1 },
+              { key: 'netIncome', label: 'Net income', type: 'line', slot: 2 },
+              { key: 'cfo', label: 'CFO', type: 'line', slot: 3 },
             ]}
           />
         </Card>
@@ -148,10 +152,10 @@ export default function GrowthTrends() {
             ctx={ctx}
             height={250}
             series={[
-              { key: 'revenue', label: 'Revenue', type: 'bar' },
-              { key: 'assets', label: 'Total assets', type: 'bar' },
-              { key: 'equity', label: 'Equity', type: 'bar' },
-              { key: 'debt', label: 'Total debt', type: 'bar' },
+              { key: 'revenue', label: 'Revenue', type: 'bar', slot: 0 },
+              { key: 'assets', label: 'Total assets', type: 'bar', slot: 1 },
+              { key: 'equity', label: 'Equity', type: 'bar', slot: 2 },
+              { key: 'debt', label: 'Total debt', type: 'bar', slot: 3 },
             ]}
           />
         </Card>

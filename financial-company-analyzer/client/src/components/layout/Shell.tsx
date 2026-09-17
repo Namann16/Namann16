@@ -134,40 +134,63 @@ export function Shell({ children }: { children: ReactNode }) {
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 bg-white/90 px-4 py-2.5 backdrop-blur dark:border-ink-800 dark:bg-ink-900/90">
-          <div className="flex min-w-0 items-center gap-3">
-            <button type="button" className="btn-secondary lg:hidden" onClick={() => setMobileOpen((v) => !v)} aria-expanded={mobileOpen}>
+        <header className="sticky top-0 z-30 border-b border-ink-200 bg-white/90 backdrop-blur dark:border-ink-800 dark:bg-ink-900/90">
+          <div className="flex items-center gap-2 px-3 py-2 lg:px-4 lg:py-2.5">
+            <button
+              type="button"
+              className="btn-secondary shrink-0 lg:hidden"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-expanded={mobileOpen}
+              aria-label="Toggle navigation"
+            >
               Menu
             </button>
+
             {current ? (
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-[13.5px] font-semibold text-ink-900 dark:text-ink-50">{current.company.name}</p>
-                  {current.company.isSample && <Badge tone="caution">Fictional sample data</Badge>}
-                  {dirty && <Badge tone="accent">Unsaved changes</Badge>}
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-[13.5px] font-semibold leading-tight text-ink-900 dark:text-ink-50">
+                    {current.company.name}
+                  </p>
+                  {/* The strap line is context the page header repeats, so it is desktop-only. */}
+                  <p className="hidden truncate text-2xs text-ink-500 dark:text-ink-400 lg:block">
+                    {meta?.industries.find((i) => i.key === current.company.industry)?.label ?? current.company.industry}
+                    {' · '}{unitsLabel(current.company.currency, current.company.units)}
+                    {analysis?.latestPeriod ? ` · Latest ${analysis.latestPeriod}` : ' · No periods entered'}
+                  </p>
                 </div>
-                <p className="truncate text-2xs text-ink-500 dark:text-ink-400">
-                  {meta?.industries.find((i) => i.key === current.company.industry)?.label ?? current.company.industry}
-                  {' · '}{unitsLabel(current.company.currency, current.company.units)}
-                  {analysis?.latestPeriod ? ` · Latest ${analysis.latestPeriod}` : ' · No periods entered'}
-                </p>
+                {current.company.isSample && (
+                  <Badge tone="caution" className="hidden shrink-0 sm:inline-flex">Fictional sample data</Badge>
+                )}
+                {dirty && <Badge tone="accent" className="shrink-0">Unsaved</Badge>}
               </div>
             ) : (
-              <p className="text-[12.5px] text-ink-500 dark:text-ink-400">No analysis open</p>
+              <p className="flex-1 text-[12.5px] text-ink-500 dark:text-ink-400">No analysis open</p>
             )}
-          </div>
-          <div className="flex items-center gap-2">
-            {analysing && <Spinner label="Recalculating" />}
-            {analysis && analysis.redFlags.length > 0 && (
-              <NavLink to="/insights">
-                <Badge tone="negative">{analysis.redFlags.length} red {analysis.redFlags.length === 1 ? 'flag' : 'flags'}</Badge>
-              </NavLink>
-            )}
-            {analysis && analysis.dataQuality.failures > 0 && (
-              <NavLink to="/data">
-                <Badge tone="negative">{analysis.dataQuality.failures} data {analysis.dataQuality.failures === 1 ? 'failure' : 'failures'}</Badge>
-              </NavLink>
-            )}
+
+            <div className="flex shrink-0 items-center gap-1.5">
+              {analysing && <span className="hidden sm:block"><Spinner label="Recalculating" /></span>}
+              {analysis && analysis.redFlags.length > 0 && (
+                <NavLink to="/insights" aria-label={`${analysis.redFlags.length} red flags`}>
+                  <Badge tone="negative">
+                    <span className="sm:hidden">{analysis.redFlags.length} ⚠</span>
+                    <span className="hidden sm:inline">
+                      {analysis.redFlags.length} red {analysis.redFlags.length === 1 ? 'flag' : 'flags'}
+                    </span>
+                  </Badge>
+                </NavLink>
+              )}
+              {analysis && analysis.dataQuality.failures > 0 && (
+                <NavLink to="/data" aria-label={`${analysis.dataQuality.failures} data failures`}>
+                  <Badge tone="negative">
+                    <span className="sm:hidden">{analysis.dataQuality.failures} ✕</span>
+                    <span className="hidden sm:inline">
+                      {analysis.dataQuality.failures} data {analysis.dataQuality.failures === 1 ? 'failure' : 'failures'}
+                    </span>
+                  </Badge>
+                </NavLink>
+              )}
+            </div>
           </div>
         </header>
 

@@ -23,10 +23,14 @@ interface WorkspaceState {
   error: string | null;
   /** True when the local data has edits that have not been saved to the server. */
   dirty: boolean;
+  /** True while the initial connection to the API is in flight. */
+  connecting: boolean;
   theme: Theme;
 }
 
 interface WorkspaceActions {
+  /** Re-attempt the initial connection to the API. */
+  retryConnection: () => Promise<void>;
   refreshCompanies: () => Promise<void>;
   openCompany: (id: string) => Promise<void>;
   closeCompany: () => void;
@@ -138,25 +142,30 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, [loadAnalysis]);
 
-  // Bootstrap: load metadata, the company list, and reopen whatever was last in view.
+  const [connecting, setConnecting] = useState(false);
+
+  /** Load metadata, the company list, and reopen whatever was last in view. */
+  const bootstrap = useCallback(async () => {
+    setConnecting(true);
+    setMetaError(null);
+    try {
+      const loaded = await api.meta();
+      setMeta(loaded);
+    } catch (e) {
+      setMetaError(describe(e));
+      return;
+    } finally {
+      setConnecting(false);
+    }
+    await refreshCompanies();
+    let last: string | null = null;
+    try { last = localStorage.getItem(LAST_COMPANY_KEY); } catch { /* storage unavailable */ }
+    if (last) await openCompany(last);
+  }, [refreshCompanies, openCompany]);
+
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const loaded = await api.meta();
-        if (!cancelled) setMeta(loaded);
-      } catch (e) {
-        if (!cancelled) setMetaError(describe(e));
-        return;
-      }
-      if (cancelled) return;
-      await refreshCompanies();
-      let last: string | null = null;
-      try { last = localStorage.getItem(LAST_COMPANY_KEY); } catch { /* storage unavailable */ }
-      if (last && !cancelled) await openCompany(last);
-    })();
-    return () => { cancelled = true; };
-    // Bootstrap runs once; refreshCompanies and openCompany are stable callbacks.
+    void bootstrap();
+    // Bootstrap runs once on mount; the retry button calls it again on demand.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -276,13 +285,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
-      meta, metaError, companies, current, analysis, loading, analysing, error, dirty, theme,
+      meta, metaError, companies, current, analysis, loading, analysing, error, dirty, theme, connecting, retryConnection: bootstrap,
       refreshCompanies, openCompany, closeCompany, createCompany, loadSample, deleteCompany,
       updateProfile, setPeriodsLocal, savePeriods, savePeers, saveThresholds, reanalyse,
       setTheme, clearError: () => setError(null),
     }),
     [
-      meta, metaError, companies, current, analysis, loading, analysing, error, dirty, theme,
+      meta, metaError, companies, current, analysis, loading, analysing, error, dirty, theme, connecting, bootstrap,
       refreshCompanies, openCompany, closeCompany, createCompany, loadSample, deleteCompany,
       updateProfile, setPeriodsLocal, savePeriods, savePeers, saveThresholds, reanalyse, setTheme,
     ],

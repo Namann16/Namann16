@@ -97,8 +97,8 @@ export default function Peers() {
         />
       ) : (
         <Card title="Comparison" description={`${current.company.name} against ${draft.length} ${draft.length === 1 ? 'peer' : 'peers'}.`} padded={false}>
-          <div className="overflow-x-auto">
-            <table className="fin-table">
+          <div className="table-scroll">
+            <table className="fin-table sticky-labels">
               <thead>
                 <tr>
                   <th className="text-left">Metric</th>
@@ -161,8 +161,8 @@ export default function Peers() {
             <EmptyState title="No peers" message="Add a peer to start entering benchmark data." action={<button type="button" className="btn-primary" onClick={addPeer}>Add peer</button>} />
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="fin-table">
+          <div className="table-scroll">
+            <table className="fin-table sticky-labels">
               <thead>
                 <tr>
                   <th className="text-left" style={{ minWidth: 180 }}>Peer</th>

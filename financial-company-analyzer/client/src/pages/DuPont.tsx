@@ -122,20 +122,29 @@ export default function DuPont() {
       )}
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card title="ROE and its components" description="Margin and ROE on the left axis in percent; turnover and leverage on the right in multiples.">
-          <FinancialChart
-            data={chartData}
-            unit="percent"
-            rightUnit="times"
-            ctx={ctx}
-            height={260}
-            series={[
-              { key: 'roe', label: 'ROE', type: 'bar', unit: 'percent' },
-              { key: 'netMargin', label: 'Net margin', type: 'line', unit: 'percent' },
-              { key: 'assetTurnover', label: 'Asset turnover', type: 'line', unit: 'times', axis: 'right' },
-              { key: 'equityMultiplier', label: 'Equity multiplier', type: 'line', unit: 'times', axis: 'right' },
-            ]}
-          />
+        <Card
+          title="ROE and its components"
+          description="One panel per component, over the same years. The components are measured in different units — percentages and multiples — so they are shown as small multiples rather than forced onto a shared scale."
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            {([
+              { key: 'roe', label: 'Return on equity', unit: 'percent' as const, slot: 0 },
+              { key: 'netMargin', label: 'Net profit margin', unit: 'percent' as const, slot: 1 },
+              { key: 'assetTurnover', label: 'Asset turnover', unit: 'times' as const, slot: 2 },
+              { key: 'equityMultiplier', label: 'Equity multiplier', unit: 'times' as const, slot: 3 },
+            ]).map((panel) => (
+              <div key={panel.key}>
+                <p className="label-caps mb-1">{panel.label}</p>
+                <FinancialChart
+                  data={chartData}
+                  unit={panel.unit}
+                  ctx={ctx}
+                  height={160}
+                  series={[{ key: panel.key, label: panel.label, type: 'line', slot: panel.slot }]}
+                />
+              </div>
+            ))}
+          </div>
         </Card>
 
         <Card title="Decomposition by period" padded={false}>

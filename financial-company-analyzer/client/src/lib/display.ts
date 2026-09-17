@@ -77,18 +77,6 @@ export const SENTIMENT_TONE: Record<Sentiment, 'positive' | 'negative' | 'neutra
   investigate: 'caution',
 };
 
-/** Colours used consistently by every chart in the application. */
-export const CHART_COLORS = {
-  primary: '#1e4d8f',
-  secondary: '#4d84c8',
-  tertiary: '#7fabdd',
-  positive: '#12b76a',
-  negative: '#f04438',
-  caution: '#f79009',
-  neutral: '#94a0b3',
-  series: ['#1e4d8f', '#12b76a', '#f79009', '#7fabdd', '#b42318', '#6b788d'],
-};
-
 /** Compact axis labels: 1,720 -> 1.7k, 1,250,000 -> 1.3M. */
 export function compactNumber(value: number): string {
   const abs = Math.abs(value);
