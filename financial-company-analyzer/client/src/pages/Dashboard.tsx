@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
-import { unitsLabel } from '@fca/core';
+import { unitsLabel, type MetricSeries } from '@fca/core';
 import { useWorkspace } from '../state/WorkspaceContext';
 import { Badge, Card, EmptyState, PageHeader } from '../components/ui/primitives';
 import { ChartPair, FinancialChart } from '../components/charts/Charts';
 import { FlagCard, KpiCard } from '../components/analysis/MetricViews';
-import { combineSeries, fmtCtx, SENTIMENT_TONE } from '../lib/display';
+import { combineSeries, fmtCtx, SENTIMENT_TONE, TREND_LABEL, TREND_TONE } from '../lib/display';
 
 const HEALTH_TONE: Record<string, 'positive' | 'negative' | 'neutral' | 'caution'> = {
   Excellent: 'positive', Strong: 'positive', Healthy: 'positive',
@@ -12,7 +12,7 @@ const HEALTH_TONE: Record<string, 'positive' | 'negative' | 'neutral' | 'caution
 };
 
 export default function Dashboard() {
-  const { analysis, current } = useWorkspace();
+  const { analysis, current, connecting, meta } = useWorkspace();
   if (!analysis || !current) return null;
 
   const { metrics, company, health, redFlags, positiveSignals, executiveSummary } = analysis;
@@ -86,6 +86,15 @@ export default function Dashboard() {
         }
       />
 
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-positive-200 bg-positive-50/70 px-3 py-2 text-[12px] text-positive-800 dark:border-positive-700/40 dark:bg-positive-700/10 dark:text-positive-100">
+        <span className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-positive-500 shadow-[0_0_0_3px_rgba(18,183,106,0.14)]" aria-hidden="true" />
+          {connecting ? 'Refreshing analysis connection…' : 'Analysis is live and up to date'}
+          {meta?.config.storage === 'mongodb' && <span className="text-positive-700/70 dark:text-positive-200/70">· MongoDB storage</span>}
+        </span>
+        <span className="text-positive-700/70 dark:text-positive-200/70">Last period: {analysis.latestPeriod ?? 'n/a'}</span>
+      </div>
+
       {/* KPI row */}
       <section aria-label="Key performance indicators" className="grid grid-cols-2 gap-2.5 md:grid-cols-4 xl:grid-cols-6">
         <KpiCard label="Revenue" series={metrics['revenue']} company={company} emphasise />
@@ -100,6 +109,55 @@ export default function Dashboard() {
         <KpiCard label="ROIC" series={metrics['roic']} company={company} />
         <KpiCard label="Net debt / EBITDA" series={metrics['netDebtToEbitda']} company={company} />
         <KpiCard label="Current ratio" series={metrics['currentRatio']} company={company} />
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+        <Card
+          title="What changed since last period"
+          description={analysis.latestPeriod && metrics['revenue']?.previous ? `${analysis.latestPeriod} compared with ${metrics['revenue'].previous.period}` : 'Add a second period to unlock period-over-period context.'}
+          actions={<Link className="btn-ghost" to="/growth">View trends</Link>}
+        >
+          {analysis.periods.length < 2 ? (
+            <div className="rounded-lg border border-dashed border-ink-300 px-4 py-5 text-[12.5px] text-ink-500 dark:border-ink-700 dark:text-ink-400">
+              The dashboard will explain revenue, profitability, cash flow, leverage, and working-capital movement once two periods are available.
+            </div>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {([
+                ['Revenue', metrics['revenue']],
+                ['EBITDA margin', metrics['ebitdaMargin']],
+                ['Free cash flow', metrics['fcf']],
+                ['Net debt / EBITDA', metrics['netDebtToEbitda']],
+              ] as [string, MetricSeries | undefined][]).map(([label, series]) => (
+                <div key={label} className="flex items-center justify-between gap-3 rounded-lg border border-ink-200 bg-ink-50/60 px-3 py-2.5 dark:border-ink-800 dark:bg-ink-950/40">
+                  <div className="min-w-0">
+                    <p className="label-caps">{label}</p>
+                    <p className="mt-1 text-[12.5px] font-semibold">{series?.latest?.status === 'ok' && series.latest.value !== null ? `${series.latest.value >= 0 ? '' : '−'}${series.latest.value.toLocaleString(undefined, { maximumFractionDigits: 1 })}` : 'n/a'}</p>
+                  </div>
+                  <Badge tone={series ? TREND_TONE[series.trend] : 'neutral'}>{series ? TREND_LABEL[series.trend] : 'No data'}</Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card title="Top takeaways" description="The most decision-relevant signals from the analysis." actions={<Link className="btn-ghost" to="/insights">Open insights</Link>}>
+          {analysis.insights.length === 0 ? (
+            <p className="text-[12.5px] text-ink-500 dark:text-ink-400">No narrative insights were generated from the available data.</p>
+          ) : (
+            <div className="space-y-3">
+              {analysis.insights.slice(0, 3).map((insight) => (
+                <div key={insight.id} className="border-l-2 border-accent-400 pl-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-[12.5px] font-semibold text-ink-900 dark:text-ink-100">{insight.title}</p>
+                    <Badge tone={SENTIMENT_TONE[insight.sentiment]}>{insight.sentiment}</Badge>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-ink-600 dark:text-ink-400">{insight.narrative}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
       </section>
 
       {/* Health pillars */}
