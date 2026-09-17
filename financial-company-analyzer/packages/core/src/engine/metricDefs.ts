@@ -218,7 +218,10 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     formula: 'PPE / Revenue × 100',
     meaning: 'Net property, plant and equipment required for each unit of revenue; useful for capital-intensive industries.',
     higherIsBetter: false,
-    supportedIndustries: ['manufacturing', 'automobile', 'infrastructure', 'energy', 'telecom'],
+    supportedIndustries: [
+      'manufacturing', 'fmcg', 'pharmaceuticals', 'automobile',
+      'infrastructure', 'energy', 'telecom',
+    ],
     compute: (ctx) => {
       const ppe = val(ctx.current, 'ppe');
       const revenue = val(ctx.current, 'revenue');
