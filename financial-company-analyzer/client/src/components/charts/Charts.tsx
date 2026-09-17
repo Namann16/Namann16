@@ -270,14 +270,14 @@ export function FinancialChart({
             <caption className="sr-only">Data table for {series.map((item) => item.label).join(', ')}</caption>
             <thead>
               <tr>
-                <th className="text-left">Period</th>
-                {series.map((item) => <th key={item.key}>{item.label}</th>)}
+                <th scope="col" className="text-left">Period</th>
+                {series.map((item) => <th scope="col" key={item.key}>{item.label}</th>)}
               </tr>
             </thead>
             <tbody>
               {data.map((row) => (
                 <tr key={String(row.period)}>
-                  <th className="text-left">{String(row.period)}</th>
+                  <th scope="row" className="text-left">{String(row.period)}</th>
                   {series.map((item) => {
                     const value = row[item.key];
                     return (

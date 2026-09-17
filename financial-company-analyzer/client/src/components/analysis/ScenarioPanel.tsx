@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { Num, ScenarioDiff } from '@fca/core';
 import { api } from '../../api/client';
 import { fmtCtx, formatMetric } from '../../lib/display';
@@ -30,6 +30,7 @@ export function ScenarioPanel({
   const [result, setResult] = useState<ScenarioDiff | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const nextRowId = useRef(2);
   const ctx = fmtCtx(company);
 
   const updateRow = (id: number, patch: Partial<ScenarioRow>) => {
@@ -124,7 +125,7 @@ export function ScenarioPanel({
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-secondary" onClick={() => setRows((current) => [
             ...current,
-            { id: Date.now(), period: sortedPeriods[sortedPeriods.length - 1]?.label ?? '', key: lineItems[0]?.key ?? '', mode: 'percent', value: '10' },
+            { id: nextRowId.current++, period: sortedPeriods[sortedPeriods.length - 1]?.label ?? '', key: lineItems[0]?.key ?? '', mode: 'percent', value: '10' },
           ])}>
             Add adjustment
           </button>
