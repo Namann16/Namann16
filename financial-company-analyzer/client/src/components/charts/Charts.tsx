@@ -111,6 +111,7 @@ export function FinancialChart({
 }: ChartProps) {
   const mode = useChartMode();
   const chrome = CHROME[mode];
+  const [showTable, setShowTable] = useState(false);
 
   if (!hasData(data, series)) {
     return (
@@ -172,8 +173,7 @@ export function FinancialChart({
   const allAreas = series.every((s) => s.type === 'area');
   const allLines = series.every((s) => !s.type || s.type === 'line');
 
-  if (allBars) {
-    return (
+  const chart = allBars ? (
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={data} margin={margin} barGap={2} barCategoryGap="22%">
           {axes}{tooltip}{legend}{referenceLine}
@@ -185,11 +185,7 @@ export function FinancialChart({
           ))}
         </BarChart>
       </ResponsiveContainer>
-    );
-  }
-
-  if (allAreas) {
-    return (
+    ) : allAreas ? (
       <ResponsiveContainer width="100%" height={height}>
         <AreaChart data={data} margin={margin}>
           <defs>
@@ -216,11 +212,7 @@ export function FinancialChart({
           })}
         </AreaChart>
       </ResponsiveContainer>
-    );
-  }
-
-  if (allLines) {
-    return (
+    ) : allLines ? (
       <ResponsiveContainer width="100%" height={height}>
         <LineChart data={data} margin={margin}>
           {axes}{tooltip}{legend}{referenceLine}
@@ -238,10 +230,7 @@ export function FinancialChart({
           })}
         </LineChart>
       </ResponsiveContainer>
-    );
-  }
-
-  return (
+    ) : (
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={data} margin={margin} barGap={2} barCategoryGap="22%">
         {axes}{tooltip}{legend}{referenceLine}
@@ -261,6 +250,49 @@ export function FinancialChart({
         })}
       </ComposedChart>
     </ResponsiveContainer>
+  );
+
+  return (
+    <div>
+      <div className="mb-1 flex justify-end">
+        <button
+          type="button"
+          className="btn-ghost text-2xs"
+          onClick={() => setShowTable((current) => !current)}
+          aria-expanded={showTable}
+        >
+          {showTable ? 'Hide data table' : 'Show data table'}
+        </button>
+      </div>
+      {showTable ? (
+        <div className="overflow-x-auto rounded border border-ink-200 dark:border-ink-800">
+          <table className="fin-table text-[11px]">
+            <caption className="sr-only">Data table for {series.map((item) => item.label).join(', ')}</caption>
+            <thead>
+              <tr>
+                <th className="text-left">Period</th>
+                {series.map((item) => <th key={item.key}>{item.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((row) => (
+                <tr key={String(row.period)}>
+                  <th className="text-left">{String(row.period)}</th>
+                  {series.map((item) => {
+                    const value = row[item.key];
+                    return (
+                      <td key={item.key} className="tnum">
+                        {typeof value === 'number' ? formatMetric(value, unit, ctx ?? {}) : 'n/a'}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : chart}
+    </div>
   );
 }
 
