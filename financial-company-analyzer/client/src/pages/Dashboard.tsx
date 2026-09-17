@@ -96,7 +96,7 @@ export default function Dashboard() {
 
       <Card
         title="Analysis history"
-        description="A snapshot is recorded whenever this analysis is recalculated, so you can see how the assessment changed over time."
+        description="Distinct snapshots are retained so you can see how the assessment changed when the underlying data changed."
       >
         {snapshots.length < 2 ? (
           <p className="text-[12.5px] text-ink-500 dark:text-ink-400">A second snapshot is recorded once the underlying data changes.</p>

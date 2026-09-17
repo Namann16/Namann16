@@ -189,7 +189,7 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     formula: '(Same-Store Revenue − Prior Same-Store Revenue) / Prior Same-Store Revenue',
     meaning: 'Growth from comparable stores, excluding the effect of openings and closures.',
     higherIsBetter: true, absoluteChangeOnly: true,
-    supportedIndustries: ['retail', 'fmcg'],
+    supportedIndustries: ['retail'],
     compute: (ctx) => growth(ctx, 'sameStoreRevenue'),
   },
   {
