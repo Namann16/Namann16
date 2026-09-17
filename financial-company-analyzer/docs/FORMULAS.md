@@ -362,3 +362,10 @@ For a bank, deposits are operating liabilities rather than leverage, and there i
 cycle — so applying a 3.0x net-debt/EBITDA limit or reporting inventory days would be
 meaningless rather than merely imprecise. For infrastructure, assets are expected to lead revenue
 by design, which is why the asset-growth tolerance is 40pp rather than 15pp.
+# Interim periods and scenarios
+
+Quarterly and half-yearly periods use their entered values by default. When annualization is
+enabled, period growth is compounded using `(1 + growth)^factor - 1`, where the factor is 4 for
+quarterly data and 2 for half-yearly data. Flow-based day metrics use `365 / factor` as the period
+day basis. Scenario analysis applies temporary line-item overrides, reruns the deterministic
+engine, and compares metric values, health score, and red flags; it never writes the overrides.

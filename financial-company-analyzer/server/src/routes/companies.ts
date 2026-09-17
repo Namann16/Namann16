@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   analyze,
+  analyzeScenario,
   buildLlmFacts,
   buildSampleDataset,
   type CompanyDataset,
@@ -14,6 +15,7 @@ import {
   replacePeriodsSchema,
   updateCompanySchema,
   peerSchema,
+  scenarioRequestSchema,
 } from '../validation/schemas.js';
 import { z } from 'zod';
 import {
@@ -24,6 +26,9 @@ import {
   storageMode,
   toDataset,
   updateCompany,
+  createAnalysisSnapshot,
+  getAnalysisSnapshot,
+  listAnalysisSnapshots,
 } from '../services/repository.js';
 import { asyncHandler, notFound } from '../middleware/errors.js';
 
@@ -155,7 +160,44 @@ companiesRouter.get(
     const id = objectIdSchema.parse(req.params.id);
     const company = await getCompany(id);
     if (!company) throw notFound('No analysis exists with that identifier.');
-    res.json({ analysis: analyze(toDataset(company)) });
+    const result = analyze(toDataset(company));
+    await createAnalysisSnapshot(id, result);
+    res.json({ analysis: result });
+  }),
+);
+
+companiesRouter.get(
+  '/:id/snapshots',
+  asyncHandler(async (req, res) => {
+    const id = objectIdSchema.parse(req.params.id);
+    const company = await getCompany(id);
+    if (!company) throw notFound('No analysis exists with that identifier.');
+    res.json({ snapshots: await listAnalysisSnapshots(id) });
+  }),
+);
+
+companiesRouter.get(
+  '/:id/snapshots/:snapshotId',
+  asyncHandler(async (req, res) => {
+    const id = objectIdSchema.parse(req.params.id);
+    const snapshotId = req.params.snapshotId;
+    if (!snapshotId) throw notFound('That analysis snapshot could not be found.');
+    const company = await getCompany(id);
+    if (!company) throw notFound('No analysis exists with that identifier.');
+    const snapshot = await getAnalysisSnapshot(id, snapshotId);
+    if (!snapshot) throw notFound('That analysis snapshot could not be found.');
+    res.json({ analysis: snapshot });
+  }),
+);
+
+companiesRouter.post(
+  '/:id/scenario',
+  asyncHandler(async (req, res) => {
+    const id = objectIdSchema.parse(req.params.id);
+    const company = await getCompany(id);
+    if (!company) throw notFound('No analysis exists with that identifier.');
+    const body = scenarioRequestSchema.parse(req.body);
+    res.json({ scenario: analyzeScenario(toDataset(company), body.modifications) });
   }),
 );
 

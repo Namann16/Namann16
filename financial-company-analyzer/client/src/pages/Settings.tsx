@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Currency, IndustryKey, ThresholdConfig, Units } from '@fca/core';
+import { api, type UserSettings } from '../api/client';
 import { useWorkspace } from '../state/WorkspaceContext';
-import { Badge, Banner, Card, EmptyState, Field, PageHeader } from '../components/ui/primitives';
+import { Badge, Banner, Card, EmptyState, Field, PageHeader, Spinner } from '../components/ui/primitives';
 
 /** Thresholds grouped for presentation. Every one of them is editable per company. */
 const THRESHOLD_GROUPS: { label: string; keys: (keyof ThresholdConfig)[] }[] = [
@@ -23,6 +24,16 @@ export default function Settings() {
   const [profile, setProfile] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
+  const [defaults, setDefaults] = useState<UserSettings | null>(null);
+  const [defaultThresholds, setDefaultThresholds] = useState<Record<string, string>>({});
+  const [defaultsSaving, setDefaultsSaving] = useState(false);
+
+  useEffect(() => {
+    void api.settings().then(({ settings }) => {
+      setDefaults(settings);
+      setDefaultThresholds(Object.fromEntries(Object.entries(settings.thresholds).map(([k, v]) => [k, String(v)])));
+    }).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     setOverrides(
@@ -38,6 +49,8 @@ export default function Settings() {
       fiscalYearEnd: current?.company.fiscalYearEnd ?? '',
       ticker: current?.company.ticker ?? '',
       benchmark: current?.company.benchmark ?? '',
+      reportingPeriod: current?.company.reportingPeriod ?? 'annual',
+      annualizeInterimMetrics: String(current?.company.annualizeInterimMetrics ?? false),
     });
   }, [current?.id, current?.thresholds, current?.company]);
 
@@ -63,6 +76,8 @@ export default function Settings() {
         fiscalYearEnd: profile.fiscalYearEnd?.trim() || null,
         ticker: profile.ticker?.trim() || null,
         benchmark: profile.benchmark?.trim() || null,
+        reportingPeriod: profile.reportingPeriod,
+        annualizeInterimMetrics: profile.annualizeInterimMetrics === 'true',
       });
       setSaved('Company settings saved and the analysis recalculated.');
     } finally {
@@ -93,6 +108,62 @@ export default function Settings() {
       />
 
       {saved && <Banner tone="positive" onDismiss={() => setSaved(null)}>{saved}</Banner>}
+
+      <Card
+        title="Defaults for new analyses"
+        description="These values are applied when you create a company without entering a company-specific override."
+        actions={<button type="button" className="btn-primary" disabled={!defaults || defaultsSaving} onClick={async () => {
+          if (!defaults) return;
+          setDefaultsSaving(true);
+          try {
+            const thresholds: Record<string, number> = {};
+            for (const [key, value] of Object.entries(defaultThresholds)) {
+              if (value.trim() && Number.isFinite(Number(value))) thresholds[key] = Number(value);
+            }
+            const { settings } = await api.saveSettings({
+              defaultCurrency: defaults.defaultCurrency,
+              defaultUnits: defaults.defaultUnits,
+              defaultIndustry: defaults.defaultIndustry,
+              thresholds,
+            });
+            setDefaults(settings);
+            setSaved('New-analysis defaults saved.');
+          } finally {
+            setDefaultsSaving(false);
+          }
+        }}>Save defaults</button>}
+      >
+        {defaults ? (
+          <div className="grid gap-3 md:grid-cols-3">
+            <Field label="Default industry">
+              <select className="input" value={defaults.defaultIndustry} onChange={(e) => setDefaults((s) => s && ({ ...s, defaultIndustry: e.target.value }))}>
+                {meta.industries.map((i) => <option key={i.key} value={i.key}>{i.label}</option>)}
+              </select>
+            </Field>
+            <Field label="Default currency">
+              <select className="input" value={defaults.defaultCurrency} onChange={(e) => setDefaults((s) => s && ({ ...s, defaultCurrency: e.target.value }))}>
+                {CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+              </select>
+            </Field>
+            <Field label="Default units">
+              <select className="input" value={defaults.defaultUnits} onChange={(e) => setDefaults((s) => s && ({ ...s, defaultUnits: e.target.value }))}>
+                {UNITS.map((units) => <option key={units} value={units}>{units}</option>)}
+              </select>
+            </Field>
+            <div className="md:col-span-3">
+              <p className="label-caps mb-2">Default threshold overrides</p>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {Object.keys(meta.thresholds.defaults).map((key) => (
+                  <label key={key} className="text-[11px] text-ink-600 dark:text-ink-300">
+                    {key}
+                    <input className="cell-input mt-1 w-full" value={defaultThresholds[key] ?? ''} placeholder={String(meta.thresholds.defaults[key as keyof ThresholdConfig])} onChange={(e) => setDefaultThresholds((values) => ({ ...values, [key]: e.target.value }))} />
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : <Spinner label="Loading defaults" />}
+      </Card>
 
       <Card title="Appearance">
         <div className="flex items-center gap-2">
@@ -160,6 +231,22 @@ export default function Settings() {
               <Field label="Benchmark">
                 <input className="input" value={profile.benchmark ?? ''} onChange={(e) => setProfile((p) => ({ ...p, benchmark: e.target.value }))} />
               </Field>
+              <Field label="Reporting period" hint="Choose the cadence represented by each entered period.">
+                <select className="input" value={profile.reportingPeriod} onChange={(e) => setProfile((p) => ({ ...p, reportingPeriod: e.target.value }))}>
+                  <option value="annual">Annual</option>
+                  <option value="half_yearly">Half-yearly</option>
+                  <option value="quarterly">Quarterly</option>
+                </select>
+              </Field>
+              <label className="flex items-start gap-2 rounded-lg border border-accent-100 bg-accent-50/60 p-3 text-[12px] dark:border-accent-700/40 dark:bg-accent-700/10 md:col-span-2">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 accent-accent-600"
+                  checked={profile.annualizeInterimMetrics === 'true'}
+                  onChange={(e) => setProfile((p) => ({ ...p, annualizeInterimMetrics: String(e.target.checked) }))}
+                />
+                <span><strong>Annualize interim metrics.</strong> Apply annualized growth and period-length-aware DSO, DIO, and DPO when using quarterly or half-yearly data.</span>
+              </label>
             </div>
           </Card>
 

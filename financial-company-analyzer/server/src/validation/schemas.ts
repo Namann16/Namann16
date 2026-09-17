@@ -82,6 +82,7 @@ export const companyProfileSchema = z.object({
   currencyLabel: z.string().max(20).nullable().optional(),
   fiscalYearEnd: z.string().max(40).nullable().optional(),
   reportingPeriod: z.enum(['annual', 'half_yearly', 'quarterly']).default('annual'),
+  annualizeInterimMetrics: z.boolean().default(false),
   units: z.enum(['units', 'thousands', 'lakhs', 'millions', 'crores', 'billions']).default('units'),
   ticker: z.string().max(20).nullable().optional(),
   benchmark: z.string().max(80).nullable().optional(),
@@ -127,6 +128,26 @@ export const analyzeRequestSchema = z.object({
   periods: z.array(periodSchema).max(20).default([]),
   peers: z.array(peerSchema).max(20).default([]),
   thresholds: thresholdsSchema.optional(),
+});
+
+export const scenarioRequestSchema = z.object({
+  modifications: z.array(z.object({
+    period: z.string().trim().min(1).max(32),
+    values: valuesRecord,
+  })).max(20),
+}).superRefine(({ modifications }, ctx) => {
+  const seen = new Set<string>();
+  modifications.forEach((modification, index) => {
+    const key = modification.period.toLowerCase();
+    if (seen.has(key)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Scenario period "${modification.period}" appears more than once.`,
+        path: ['modifications', index, 'period'],
+      });
+    }
+    seen.add(key);
+  });
 });
 
 export const settingsSchema = z.object({

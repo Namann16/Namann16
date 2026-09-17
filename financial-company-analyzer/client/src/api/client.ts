@@ -7,6 +7,7 @@ import type {
   MetricGroup,
   PeerCompany,
   ThresholdConfig,
+  ScenarioDiff,
 } from '@fca/core';
 
 /**
@@ -166,12 +167,36 @@ export interface CommitResponse {
   summary: { fieldsImported: number; rowsSkipped: number; periodsCreated: number; warnings: number };
 }
 
+export interface UserSettings {
+  key: string;
+  theme: 'light' | 'dark' | 'system';
+  defaultCurrency: string;
+  defaultUnits: string;
+  defaultIndustry: string;
+  thresholds: Partial<ThresholdConfig>;
+  llmNarrativeEnabled: boolean;
+}
+
+export interface SnapshotSummary {
+  id: string;
+  companyId: string;
+  engineVersion: string;
+  generatedAt: string;
+  latestPeriod: string | null;
+  healthScore: number | null;
+  healthLabel: string | null;
+  redFlagCount: number;
+}
+
 /* ------------------------------------------------------------------ */
 /* Endpoints                                                          */
 /* ------------------------------------------------------------------ */
 
 export const api = {
   meta: () => request<AppMeta>('/meta'),
+  settings: () => request<{ settings: UserSettings }>('/settings'),
+  saveSettings: (body: Partial<UserSettings>) =>
+    request<{ settings: UserSettings }>('/settings', { method: 'PUT', body: JSON.stringify(body) }),
 
   listCompanies: () => request<{ companies: CompanySummary[]; storage: string }>('/companies'),
 
@@ -194,6 +219,15 @@ export const api = {
   deleteCompany: (id: string) => request<void>(`/companies/${id}`, { method: 'DELETE' }),
 
   analysis: (id: string) => request<{ analysis: AnalysisResult }>(`/companies/${id}/analysis`),
+  snapshots: (id: string) => request<{ snapshots: SnapshotSummary[] }>(`/companies/${id}/snapshots`),
+  snapshot: (id: string, snapshotId: string) =>
+    request<{ analysis: AnalysisResult }>(`/companies/${id}/snapshots/${snapshotId}`),
+
+  scenario: (id: string, modifications: { period: string; values: Record<string, number | null> }[]) =>
+    request<{ scenario: ScenarioDiff }>(`/companies/${id}/scenario`, {
+      method: 'POST',
+      body: JSON.stringify({ modifications }),
+    }),
 
   analyzeAdHoc: (body: { company: Partial<CompanyProfile>; periods: FinancialPeriod[]; peers?: PeerCompany[]; thresholds?: Partial<ThresholdConfig> }) =>
     request<{ analysis: AnalysisResult }>('/analyze', { method: 'POST', body: JSON.stringify(body) }),

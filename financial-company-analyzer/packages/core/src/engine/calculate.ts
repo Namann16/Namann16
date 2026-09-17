@@ -20,6 +20,7 @@ import { val } from './normalize.js';
 export function calculateMetrics(
   periods: FinancialPeriod[],
   industry: IndustryKey | undefined,
+  options: { reportingPeriod?: 'annual' | 'half_yearly' | 'quarterly'; annualizeInterimMetrics?: boolean } = {},
 ): Record<string, MetricSeries> {
   const suppressed = suppressedMetricsFor(industry);
   const industryNote = industryProfile(industry).label;
@@ -36,15 +37,22 @@ export function calculateMetrics(
         ...(def.higherIsBetter !== undefined ? { higherIsBetter: def.higherIsBetter } : {}),
       };
 
-      if (suppressed.has(def.key)) {
+      if (suppressed.has(def.key) || (def.supportedIndustries && !def.supportedIndustries.includes(industry ?? 'general'))) {
         return notApplicable(
           spec,
           period.label,
-          `This metric is not meaningful for a ${industryNote} business and has been suppressed by the industry configuration.`,
+          def.supportedIndustries
+            ? `This industry-specific metric is only supported for ${def.supportedIndustries.join(', ')} businesses.`
+            : `This metric is not meaningful for a ${industryNote} business and has been suppressed by the industry configuration.`,
         );
       }
 
-      const ctx = { current: period, prior: index > 0 ? periods[index - 1] : undefined };
+      const ctx = {
+        current: period,
+        prior: index > 0 ? periods[index - 1] : undefined,
+        reportingPeriod: options.reportingPeriod,
+        annualizeInterimMetrics: options.annualizeInterimMetrics,
+      };
       const { value, inputs, note } = def.compute(ctx);
       return makeMetric(spec, period.label, value, inputs, note ? { note } : {});
     });
@@ -109,7 +117,10 @@ const CAGR_TARGETS: CagrTarget[] = [
  * endpoints are available and positive. A CAGR through a loss year has no real
  * solution, so it is reported as unavailable rather than approximated.
  */
-export function calculateCagr(periods: FinancialPeriod[]): MetricValue[] {
+export function calculateCagr(
+  periods: FinancialPeriod[],
+  options: { reportingPeriod?: 'annual' | 'half_yearly' | 'quarterly'; annualizeInterimMetrics?: boolean } = {},
+): MetricValue[] {
   return CAGR_TARGETS.map((target) => {
     const spec = {
       key: target.key,
@@ -146,7 +157,10 @@ export function calculateCagr(periods: FinancialPeriod[]): MetricValue[] {
 
     const begin = series[firstIdx]!;
     const end = series[lastIdx]!;
-    const years = lastIdx - firstIdx;
+    const factor = options.annualizeInterimMetrics
+      ? options.reportingPeriod === 'quarterly' ? 4 : options.reportingPeriod === 'half_yearly' ? 2 : 1
+      : 1;
+    const years = (lastIdx - firstIdx) / factor;
 
     return makeMetric(
       { ...spec, label: `${target.label} (${begin.label}–${end.label})` },
@@ -157,8 +171,8 @@ export function calculateCagr(periods: FinancialPeriod[]): MetricValue[] {
         [`${end.label} (ending)`]: end.value,
         years,
       },
-      years < periods.length - 1
-        ? { note: `Computed over ${years} year(s); earlier periods were excluded because the value was missing or not positive.` }
+      years < periods.length - 1 / factor
+        ? { note: `Computed over ${years} year(s); interim periods were annualized using a ${factor}x factor.` }
         : {},
     );
   });

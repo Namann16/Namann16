@@ -345,11 +345,14 @@ place:
 
 - Peer data is entered manually; there is no market-data feed
 - Segment data is read from the template and preserved, but is not yet used by the analysis engine
-- Industry configuration adjusts thresholds and suppresses metrics that do not apply, but
-  industry-specific *metrics* (net interest margin for banks, same-store sales for retail) are not
-  yet implemented — the architecture is in place for them
-- The reporting-period setting supports quarterly and half-yearly labels, but annualisation of
-  interim figures is not applied: days-based metrics assume a 365-day period
+- Industry configuration adjusts thresholds and suppresses metrics that do not apply. The first
+  industry-specific release includes capital intensity (PPE / revenue) for manufacturing,
+  automobile, infrastructure, energy, and telecom companies.
+- Quarterly and half-yearly data remains visible as entered. Enable **Annualize interim metrics**
+  in Settings to annualize growth, CAGR, and flow-based days metrics (4x for quarterly, 2x for
+  half-yearly); annual data is unchanged.
+- Scenario analysis runs temporary what-if changes against a stored company without persisting
+  them, and reports metric, health-score, and red-flag differences.
 - There is no authentication; the application is intended to run locally or behind your own
   access control
 - The MongoDB path is covered by unit tests of the document mapping, but the live driver round

@@ -96,6 +96,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return () => media.removeEventListener('change', onChange);
   }, [theme]);
 
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = 'You have unsaved financial data.';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [dirty]);
+
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);
     try { localStorage.setItem(THEME_KEY, next); } catch { /* storage unavailable */ }

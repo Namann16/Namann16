@@ -39,7 +39,7 @@ const NAV_GROUPS: { label: string; items: { to: string; label: string; needsComp
   },
 ];
 
-function NavItem({ to, label, disabled }: { to: string; label: string; disabled: boolean }) {
+function NavItem({ to, label, disabled, dirty }: { to: string; label: string; disabled: boolean; dirty: boolean }) {
   if (disabled) {
     return (
       <span
@@ -54,6 +54,11 @@ function NavItem({ to, label, disabled }: { to: string; label: string; disabled:
     <NavLink
       to={to}
       end={to === '/'}
+      onClick={(event) => {
+        if (dirty && !window.confirm('You have unsaved financial data. Leave without saving?')) {
+          event.preventDefault();
+        }
+      }}
       className={({ isActive }) =>
         `block rounded px-2.5 py-1.5 text-[12.5px] transition-colors ${
           isActive
@@ -98,7 +103,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 <p className="label-caps px-2.5 pb-1">{group.label}</p>
                 <div className="space-y-0.5" onClick={() => setMobileOpen(false)}>
                   {group.items.map((item) => (
-                    <NavItem key={item.to} to={item.to} label={item.label} disabled={Boolean(item.needsCompany) && !hasCompany} />
+                    <NavItem key={item.to} to={item.to} label={item.label} dirty={dirty} disabled={Boolean(item.needsCompany) && !hasCompany} />
                   ))}
                 </div>
               </div>

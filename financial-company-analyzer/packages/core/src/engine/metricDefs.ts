@@ -1,4 +1,4 @@
-import type { FinancialPeriod, MetricGroup, MetricUnit, Num } from '../types.js';
+import type { FinancialPeriod, IndustryKey, MetricGroup, MetricUnit, Num } from '../types.js';
 import {
   add,
   average,
@@ -17,6 +17,8 @@ export interface MetricContext {
   current: FinancialPeriod;
   /** The immediately preceding period, when one exists. Used for averages and growth. */
   prior: FinancialPeriod | undefined;
+  annualizeInterimMetrics?: boolean;
+  reportingPeriod?: 'annual' | 'half_yearly' | 'quarterly';
 }
 
 export interface MetricComputation {
@@ -36,6 +38,7 @@ export interface MetricDefinition {
   higherIsBetter?: boolean;
   /** When true a change is naturally expressed in absolute terms (pp, days, x) not in %. */
   absoluteChangeOnly?: boolean;
+  supportedIndustries?: IndustryKey[];
   compute: (ctx: MetricContext) => MetricComputation;
 }
 
@@ -117,15 +120,35 @@ function avgBalance(ctx: MetricContext, key: string): { value: Num; note?: strin
   };
 }
 
+function interimFactor(ctx: MetricContext): number {
+  if (ctx.reportingPeriod === 'quarterly') return 4;
+  if (ctx.reportingPeriod === 'half_yearly') return 2;
+  return 1;
+}
+
 function growth(ctx: MetricContext, key: string): MetricComputation {
   const cur = val(ctx.current, key);
   const prev = val(ctx.prior, key);
+  const raw = percentChange(prev, cur);
+  const factor = ctx.annualizeInterimMetrics ? interimFactor(ctx) : 1;
+  const value = isNum(raw) && factor > 1 && raw > -100
+    ? ((1 + raw / 100) ** factor - 1) * 100
+    : raw;
   return {
-    value: percentChange(prev, cur),
+    value,
     inputs: { [`${key} (prior)`]: prev, [`${key} (current)`]: cur },
     ...(isNum(prev) && prev < 0
       ? { note: 'Growth is not reported off a negative base because the result would not be interpretable.' }
-      : {}),
+      : factor > 1 ? { note: `Annualized from ${ctx.reportingPeriod === 'quarterly' ? 'quarterly' : 'half-yearly'} change using a ${factor}x factor.` } : {}),
+  };
+}
+
+function daysBasis(ctx: MetricContext): { days: number; note?: string } {
+  const factor = ctx.annualizeInterimMetrics ? interimFactor(ctx) : 1;
+  if (factor === 1) return { days: 365 };
+  return {
+    days: 365 / factor,
+    note: `Annualized from ${ctx.reportingPeriod === 'quarterly' ? 'quarterly' : 'half-yearly'} flow data using a ${factor}x annualization factor.`,
   };
 }
 
@@ -171,6 +194,18 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     meaning: 'The bottom-line profit left for shareholders after all costs, interest and tax.',
     higherIsBetter: true,
     compute: (ctx) => ({ value: val(ctx.current, 'netIncome'), inputs: { netIncome: val(ctx.current, 'netIncome') } }),
+  },
+  {
+    key: 'capitalIntensity', label: 'Capital Intensity', group: 'efficiency', unit: 'percent',
+    formula: 'PPE / Revenue × 100',
+    meaning: 'Net property, plant and equipment required for each unit of revenue; useful for capital-intensive industries.',
+    higherIsBetter: false,
+    supportedIndustries: ['manufacturing', 'automobile', 'infrastructure', 'energy', 'telecom'],
+    compute: (ctx) => {
+      const ppe = val(ctx.current, 'ppe');
+      const revenue = val(ctx.current, 'revenue');
+      return { value: toPercent(safeDiv(ppe, revenue)), inputs: { ppe, revenue } };
+    },
   },
 
   /* ============ Growth ============ */
@@ -653,10 +688,11 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
       const rev = val(ctx.current, 'revenue');
       const avg = avgBalance(ctx, 'accountsReceivable');
       const ratio = safeDivPositiveDenominator(avg.value, rev);
+      const basis = daysBasis(ctx);
       return {
-        value: isNum(ratio) ? ratio * 365 : null,
+        value: isNum(ratio) ? ratio * basis.days : null,
         inputs: { revenue: rev, ...avg.inputs },
-        ...(avg.note ? { note: avg.note } : {}),
+        ...(avg.note || basis.note ? { note: [avg.note, basis.note].filter(Boolean).join(' ') } : {}),
       };
     },
   },
@@ -669,10 +705,11 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
       const cogs = val(ctx.current, 'cogs');
       const avg = avgBalance(ctx, 'inventory');
       const ratio = safeDivPositiveDenominator(avg.value, cogs);
+      const basis = daysBasis(ctx);
       return {
-        value: isNum(ratio) ? ratio * 365 : null,
+        value: isNum(ratio) ? ratio * basis.days : null,
         inputs: { cogs, ...avg.inputs },
-        ...(avg.note ? { note: avg.note } : {}),
+        ...(avg.note || basis.note ? { note: [avg.note, basis.note].filter(Boolean).join(' ') } : {}),
       };
     },
   },
@@ -685,10 +722,11 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
       const cogs = val(ctx.current, 'cogs');
       const avg = avgBalance(ctx, 'accountsPayable');
       const ratio = safeDivPositiveDenominator(avg.value, cogs);
+      const basis = daysBasis(ctx);
       return {
-        value: isNum(ratio) ? ratio * 365 : null,
+        value: isNum(ratio) ? ratio * basis.days : null,
         inputs: { cogs, ...avg.inputs },
-        ...(avg.note ? { note: avg.note } : {}),
+        ...(avg.note || basis.note ? { note: [avg.note, basis.note].filter(Boolean).join(' ') } : {}),
       };
     },
   },

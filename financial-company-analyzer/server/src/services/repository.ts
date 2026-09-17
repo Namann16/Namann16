@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { CompanyDataset, CompanyProfile, FinancialPeriod, PeerCompany, ThresholdConfig } from '@fca/core';
-import { CompanyModel } from '../models/Company.js';
+import { AnalysisSnapshotModel, CompanyModel, UserSettingsModel } from '../models/Company.js';
 import { isDatabaseConnected } from '../db/connect.js';
 
 /**
@@ -48,6 +48,7 @@ export function fromDocument(doc: any): StoredCompany {
     currencyLabel: doc.currencyLabel ?? undefined,
     fiscalYearEnd: doc.fiscalYearEnd ?? undefined,
     reportingPeriod: doc.reportingPeriod ?? 'annual',
+    annualizeInterimMetrics: Boolean(doc.annualizeInterimMetrics),
     units: doc.units,
     ticker: doc.ticker ?? null,
     benchmark: doc.benchmark ?? null,
@@ -137,12 +138,14 @@ export interface UpsertInput {
 }
 
 export async function createCompany(input: UpsertInput): Promise<StoredCompany> {
+  const defaultSettings = await getUserSettings();
+  const thresholds = input.thresholds ?? defaultSettings.thresholds;
   if (storageMode() === 'mongodb') {
     const doc = await CompanyModel.create({
       ...input.company,
       periods: input.periods ?? [],
       peers: input.peers ?? [],
-      thresholds: input.thresholds ?? {},
+      thresholds,
     });
     return fromDocument(doc.toObject());
   }
@@ -154,7 +157,7 @@ export async function createCompany(input: UpsertInput): Promise<StoredCompany> 
     company: { ...input.company, id },
     periods: input.periods ?? [],
     peers: input.peers ?? [],
-    thresholds: input.thresholds ?? {},
+    thresholds,
     createdAt: now,
     updatedAt: now,
   };
@@ -212,4 +215,123 @@ export function toDataset(entry: StoredCompany): CompanyDataset {
     peers: entry.peers,
     thresholds: entry.thresholds,
   };
+}
+
+export interface UserSettings {
+  key: string;
+  theme: 'light' | 'dark' | 'system';
+  defaultCurrency: string;
+  defaultUnits: string;
+  defaultIndustry: string;
+  thresholds: Partial<ThresholdConfig>;
+  llmNarrativeEnabled: boolean;
+}
+
+const memorySettings: UserSettings = {
+  key: 'default',
+  theme: 'system',
+  defaultCurrency: 'INR',
+  defaultUnits: 'crores',
+  defaultIndustry: 'general',
+  thresholds: {},
+  llmNarrativeEnabled: false,
+};
+
+function fromSettingsDocument(doc: any): UserSettings {
+  return {
+    key: doc.key ?? 'default',
+    theme: doc.theme ?? 'system',
+    defaultCurrency: doc.defaultCurrency ?? 'INR',
+    defaultUnits: doc.defaultUnits ?? 'crores',
+    defaultIndustry: doc.defaultIndustry ?? 'general',
+    thresholds: mapToObject<number>(doc.thresholds) as Partial<ThresholdConfig>,
+    llmNarrativeEnabled: Boolean(doc.llmNarrativeEnabled),
+  };
+}
+
+export async function getUserSettings(): Promise<UserSettings> {
+  if (storageMode() === 'mongodb') {
+    const doc = await UserSettingsModel.findOne({ key: 'default' }).lean();
+    return doc ? fromSettingsDocument(doc) : memorySettings;
+  }
+  return memorySettings;
+}
+
+export async function updateUserSettings(input: Partial<UserSettings>): Promise<UserSettings> {
+  const next = { ...memorySettings, ...input, key: 'default' };
+  if (storageMode() === 'mongodb') {
+    const doc = await UserSettingsModel.findOneAndUpdate(
+      { key: 'default' },
+      { $set: next },
+      { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true },
+    ).lean();
+    return fromSettingsDocument(doc);
+  }
+  Object.assign(memorySettings, next);
+  return memorySettings;
+}
+
+export interface SnapshotSummary {
+  id: string;
+  companyId: string;
+  engineVersion: string;
+  generatedAt: string;
+  latestPeriod: string | null;
+  healthScore: number | null;
+  healthLabel: string | null;
+  redFlagCount: number;
+}
+
+function snapshotSummary(doc: any): SnapshotSummary {
+  return {
+    id: String(doc._id),
+    companyId: String(doc.company),
+    engineVersion: doc.engineVersion,
+    generatedAt: doc.generatedAt?.toISOString?.() ?? new Date().toISOString(),
+    latestPeriod: doc.latestPeriod ?? null,
+    healthScore: doc.healthScore ?? null,
+    healthLabel: doc.healthLabel ?? null,
+    redFlagCount: doc.redFlagCount ?? 0,
+  };
+}
+
+export async function createAnalysisSnapshot(companyId: string, analysis: any): Promise<SnapshotSummary> {
+  const payload = JSON.parse(JSON.stringify(analysis));
+  if (storageMode() === 'mongodb') {
+    const doc = await AnalysisSnapshotModel.create({
+      company: companyId,
+      engineVersion: analysis.engineVersion,
+      generatedAt: new Date(),
+      latestPeriod: analysis.latestPeriod,
+      healthScore: analysis.health.overall,
+      healthLabel: analysis.health.label,
+      redFlagCount: analysis.redFlags.length,
+      payload,
+    });
+    return snapshotSummary(doc.toObject());
+  }
+  return {
+    id: `mem_snapshot_${randomUUID().slice(0, 12)}`,
+    companyId,
+    engineVersion: analysis.engineVersion,
+    generatedAt: new Date().toISOString(),
+    latestPeriod: analysis.latestPeriod,
+    healthScore: analysis.health.overall,
+    healthLabel: analysis.health.label,
+    redFlagCount: analysis.redFlags.length,
+  };
+}
+
+export async function listAnalysisSnapshots(companyId: string): Promise<SnapshotSummary[]> {
+  if (storageMode() === 'mongodb') {
+    const docs = await AnalysisSnapshotModel.find({ company: companyId }).sort({ generatedAt: -1 }).limit(100).lean();
+    return docs.map(snapshotSummary);
+  }
+  return [];
+}
+
+export async function getAnalysisSnapshot(companyId: string, snapshotId: string): Promise<any | null> {
+  if (storageMode() !== 'mongodb') return null;
+  const doc = await AnalysisSnapshotModel.findOne({ _id: snapshotId, company: companyId }).lean();
+  return doc?.payload ?? null;
 }
