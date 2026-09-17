@@ -7,6 +7,7 @@ import type {
   MetricGroup,
   PeerCompany,
   ThresholdConfig,
+  ScenarioDiff,
 } from '@fca/core';
 
 /**
@@ -194,6 +195,12 @@ export const api = {
   deleteCompany: (id: string) => request<void>(`/companies/${id}`, { method: 'DELETE' }),
 
   analysis: (id: string) => request<{ analysis: AnalysisResult }>(`/companies/${id}/analysis`),
+
+  scenario: (id: string, modifications: { period: string; values: Record<string, number | null> }[]) =>
+    request<{ scenario: ScenarioDiff }>(`/companies/${id}/scenario`, {
+      method: 'POST',
+      body: JSON.stringify({ modifications }),
+    }),
 
   analyzeAdHoc: (body: { company: Partial<CompanyProfile>; periods: FinancialPeriod[]; peers?: PeerCompany[]; thresholds?: Partial<ThresholdConfig> }) =>
     request<{ analysis: AnalysisResult }>('/analyze', { method: 'POST', body: JSON.stringify(body) }),

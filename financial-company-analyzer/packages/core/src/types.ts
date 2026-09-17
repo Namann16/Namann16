@@ -144,6 +144,8 @@ export interface CompanyProfile {
   currencyLabel?: string;
   fiscalYearEnd?: string;
   reportingPeriod?: 'annual' | 'half_yearly' | 'quarterly';
+  /** Opt in to annualized growth and days-based metrics for interim reporting. */
+  annualizeInterimMetrics?: boolean;
   units: Units;
   ticker?: string | null;
   benchmark?: string | null;
@@ -166,6 +168,30 @@ export interface CompanyDataset {
   periods: FinancialPeriod[];
   peers?: PeerCompany[];
   thresholds?: Partial<ThresholdConfig>;
+}
+
+export interface ScenarioModification {
+  period: string;
+  values: Record<string, Num>;
+}
+
+export interface ScenarioMetricChange {
+  key: string;
+  label: string;
+  period: string;
+  base: Num;
+  scenario: Num;
+  delta: Num;
+  unit: MetricUnit;
+}
+
+export interface ScenarioDiff {
+  base: AnalysisResult;
+  scenario: AnalysisResult;
+  metricChanges: ScenarioMetricChange[];
+  healthDelta: Num;
+  addedRedFlags: string[];
+  removedRedFlags: string[];
 }
 
 /* ------------------------------------------------------------------ */

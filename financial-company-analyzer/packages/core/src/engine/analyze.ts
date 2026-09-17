@@ -23,9 +23,15 @@ export function analyze(dataset: CompanyDataset): AnalysisResult {
   const thresholds = resolveThresholds(dataset.company.industry, dataset.thresholds);
   const { periods } = normalizePeriods(dataset.periods ?? []);
 
-  const metrics = calculateMetrics(periods, dataset.company.industry);
+  const metrics = calculateMetrics(periods, dataset.company.industry, {
+    reportingPeriod: dataset.company.reportingPeriod,
+    annualizeInterimMetrics: dataset.company.annualizeInterimMetrics,
+  });
   const metricsByGroup = groupMetrics(metrics);
-  const cagr = calculateCagr(periods);
+  const cagr = calculateCagr(periods, {
+    reportingPeriod: dataset.company.reportingPeriod,
+    annualizeInterimMetrics: dataset.company.annualizeInterimMetrics,
+  });
   const duPont = analyzeDuPont(periods, metrics);
   const health = scoreHealth(metrics, thresholds);
   const dataQuality = assessDataQuality(periods, dataset.company, metrics, thresholds);

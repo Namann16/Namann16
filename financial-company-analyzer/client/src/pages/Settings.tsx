@@ -38,6 +38,8 @@ export default function Settings() {
       fiscalYearEnd: current?.company.fiscalYearEnd ?? '',
       ticker: current?.company.ticker ?? '',
       benchmark: current?.company.benchmark ?? '',
+      reportingPeriod: current?.company.reportingPeriod ?? 'annual',
+      annualizeInterimMetrics: String(current?.company.annualizeInterimMetrics ?? false),
     });
   }, [current?.id, current?.thresholds, current?.company]);
 
@@ -63,6 +65,8 @@ export default function Settings() {
         fiscalYearEnd: profile.fiscalYearEnd?.trim() || null,
         ticker: profile.ticker?.trim() || null,
         benchmark: profile.benchmark?.trim() || null,
+        reportingPeriod: profile.reportingPeriod,
+        annualizeInterimMetrics: profile.annualizeInterimMetrics === 'true',
       });
       setSaved('Company settings saved and the analysis recalculated.');
     } finally {
@@ -160,6 +164,22 @@ export default function Settings() {
               <Field label="Benchmark">
                 <input className="input" value={profile.benchmark ?? ''} onChange={(e) => setProfile((p) => ({ ...p, benchmark: e.target.value }))} />
               </Field>
+              <Field label="Reporting period" hint="Choose the cadence represented by each entered period.">
+                <select className="input" value={profile.reportingPeriod} onChange={(e) => setProfile((p) => ({ ...p, reportingPeriod: e.target.value }))}>
+                  <option value="annual">Annual</option>
+                  <option value="half_yearly">Half-yearly</option>
+                  <option value="quarterly">Quarterly</option>
+                </select>
+              </Field>
+              <label className="flex items-start gap-2 rounded-lg border border-accent-100 bg-accent-50/60 p-3 text-[12px] dark:border-accent-700/40 dark:bg-accent-700/10 md:col-span-2">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 accent-accent-600"
+                  checked={profile.annualizeInterimMetrics === 'true'}
+                  onChange={(e) => setProfile((p) => ({ ...p, annualizeInterimMetrics: String(e.target.checked) }))}
+                />
+                <span><strong>Annualize interim metrics.</strong> Apply annualized growth and period-length-aware DSO, DIO, and DPO when using quarterly or half-yearly data.</span>
+              </label>
             </div>
           </Card>
 

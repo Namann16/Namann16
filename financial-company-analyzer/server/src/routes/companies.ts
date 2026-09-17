@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   analyze,
+  analyzeScenario,
   buildLlmFacts,
   buildSampleDataset,
   type CompanyDataset,
@@ -14,6 +15,7 @@ import {
   replacePeriodsSchema,
   updateCompanySchema,
   peerSchema,
+  scenarioRequestSchema,
 } from '../validation/schemas.js';
 import { z } from 'zod';
 import {
@@ -156,6 +158,17 @@ companiesRouter.get(
     const company = await getCompany(id);
     if (!company) throw notFound('No analysis exists with that identifier.');
     res.json({ analysis: analyze(toDataset(company)) });
+  }),
+);
+
+companiesRouter.post(
+  '/:id/scenario',
+  asyncHandler(async (req, res) => {
+    const id = objectIdSchema.parse(req.params.id);
+    const company = await getCompany(id);
+    if (!company) throw notFound('No analysis exists with that identifier.');
+    const body = scenarioRequestSchema.parse(req.body);
+    res.json({ scenario: analyzeScenario(toDataset(company), body.modifications) });
   }),
 );
 
