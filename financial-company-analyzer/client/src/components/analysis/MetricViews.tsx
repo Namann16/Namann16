@@ -20,12 +20,25 @@ const TONE_TEXT = {
 /* ------------------------------------------------------------------ */
 
 export function KpiCard({
-  label, series, company, hint, emphasise,
-}: { label: string; series: MetricSeries | undefined; company: CompanyProfile; hint?: string; emphasise?: boolean }) {
+  label, series, company, hint, emphasise, benchmark,
+}: {
+  label: string;
+  series: MetricSeries | undefined;
+  company: CompanyProfile;
+  hint?: string;
+  emphasise?: boolean;
+  benchmark?: { value: number; label: string; higherIsBetter?: boolean };
+}) {
   const ctx = fmtCtx(company);
   const latest = series?.latest;
   const available = latest && latest.status === 'ok' && latest.value !== null;
   const tone = series ? changeTone(series) : 'neutral';
+  const values = series?.points
+    .filter((point) => point.status === 'ok' && point.value !== null)
+    .map((point) => point.value as number) ?? [];
+  const benchmarkTone = available && benchmark
+    ? ((latest.value as number) >= benchmark.value) === (benchmark.higherIsBetter ?? true) ? 'positive' : 'negative'
+    : 'neutral';
 
   return (
     <div
@@ -63,6 +76,15 @@ export function KpiCard({
         ) : (
           <span className="text-ink-400 dark:text-ink-500">
             {!available ? (latest?.note ? 'Not available' : 'Not available from the data supplied') : 'No prior period'}
+          </span>
+        )}
+      </div>
+      <div className="mt-2 flex items-end justify-between gap-2">
+        {values.length > 1 ? <Sparkline values={values} tone={tone === 'neutral' ? 'accent' : tone} /> : <span />}
+        {available && benchmark && (
+          <span className={`text-right text-2xs ${TONE_TEXT[benchmarkTone]}`}>
+            <span className="block font-semibold">{benchmarkTone === 'positive' ? 'Above' : 'Below'} benchmark</span>
+            <span className="text-ink-400 dark:text-ink-500">{benchmark.label}</span>
           </span>
         )}
       </div>

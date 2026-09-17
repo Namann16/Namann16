@@ -92,7 +92,7 @@ export default function CashFlow() {
         </div>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Cash flow by activity" description="Operating, investing and financing flows, and the net movement in cash.">
           <FinancialChart
             data={flows}

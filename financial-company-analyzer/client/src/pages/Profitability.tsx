@@ -50,7 +50,7 @@ export default function Profitability() {
         <KpiCard label="ROIC" series={metrics['roic']} company={company} emphasise />
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Margin structure" description="Each margin level across the analysis period. Widening gaps between levels show where costs are growing.">
           <FinancialChart
             data={margins}

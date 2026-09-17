@@ -121,7 +121,7 @@ export default function DuPont() {
         </Card>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card
           title="ROE and its components"
           description="One panel per component, over the same years. The components are measured in different units — percentages and multiples — so they are shown as small multiples rather than forced onto a shared scale."

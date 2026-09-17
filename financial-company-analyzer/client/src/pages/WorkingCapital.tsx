@@ -62,7 +62,7 @@ export default function WorkingCapital() {
         <KpiCard label="WC / revenue" series={metrics['workingCapitalToRevenue']} company={company} />
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Cash conversion cycle" description="Days of receivables plus days of inventory, less days of payables. A shorter cycle releases cash.">
           <FinancialChart
             data={cycle}
