@@ -99,7 +99,7 @@ export default function Dashboard() {
         description="A snapshot is recorded whenever this analysis is recalculated, so you can see how the assessment changed over time."
       >
         {snapshots.length < 2 ? (
-          <p className="text-[12.5px] text-ink-500 dark:text-ink-400">History will appear after the next recalculation.</p>
+          <p className="text-[12.5px] text-ink-500 dark:text-ink-400">A second snapshot is recorded once the underlying data changes.</p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="surface px-3 py-2">

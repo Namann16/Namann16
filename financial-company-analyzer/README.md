@@ -317,27 +317,12 @@ inherited property names.
 
 ### Known supply-chain issue: the spreadsheet parser
 
-`xlsx` is pinned at **0.18.5**, which is the last version SheetJS published to npm — they now
-distribute only from their own CDN, so `npm install xlsx@latest` still resolves to 0.18.5. That
-line carries a prototype-pollution issue reachable by parsing a crafted workbook
-([CVE-2023-30533](https://nvd.nist.gov/vuln/detail/CVE-2023-30533), fixed in 0.19.3).
-
-Since this application parses untrusted uploads, that path is reachable, so two things are in
-place:
-
-1. **Move to the patched build** if your network allows it. This is the real fix:
-
-   ```bash
-   npm install --workspace @fca/server https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
-   ```
-
-   It was not done here because the build environment's egress policy blocks `cdn.sheetjs.com`.
-
-2. **Until then, the parse is bounded at runtime.** `server/src/services/parseGuard.ts` snapshots
-   the built-in prototypes, runs the parse, and if anything was grafted onto them it removes the
-   additions and rejects the upload with a 400. Pollution cannot outlive the request that caused
-   it or reach another user's analysis. This is containment, not a substitute for the upgrade —
-   see `server/test/parseGuard.test.ts`, which verifies both the revert and the rejection.
+`xlsx` is installed from SheetJS' patched **0.20.3** CDN build rather than the abandoned npm
+0.18.5 release. This avoids the known prototype-pollution issue reachable through crafted
+workbooks ([CVE-2023-30533](https://nvd.nist.gov/vuln/detail/CVE-2023-30533)). The runtime
+`server/src/services/parseGuard.ts` remains as defense in depth: it snapshots built-in prototypes,
+rejects uploads that graft new properties, and verifies the cleanup path in
+`server/test/parseGuard.test.ts`.
 
 ---
 
