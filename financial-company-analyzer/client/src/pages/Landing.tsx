@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Currency, IndustryKey, Units } from '@fca/core';
 import { useWorkspace } from '../state/WorkspaceContext';
 import { api } from '../api/client';
-import { Badge, Banner, Card, EmptyState, Field, Modal, PageHeader, Spinner } from '../components/ui/primitives';
+import { Badge, Banner, Card, EmptyState, Field, Modal, Spinner } from '../components/ui/primitives';
 
 const UNITS: { value: Units; label: string }[] = [
   { value: 'units', label: 'Units' },
@@ -107,28 +107,47 @@ export default function Landing() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5">
-      <PageHeader
-        title="Financial Company Analyzer"
-        description="Transform raw company financials into structured financial analysis, trends, ratios, and actionable insights."
-      />
+    <div className="mx-auto max-w-6xl space-y-6">
+      <section className="hero-glow rounded-2xl px-6 py-8 sm:px-8 sm:py-10">
+        <div className="max-w-2xl">
+          <p className="mb-3 text-2xs font-semibold uppercase tracking-[0.2em] text-accent-100">Decision intelligence for finance teams</p>
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">See the story behind the numbers.</h1>
+          <p className="mt-3 max-w-xl text-[13.5px] leading-7 text-blue-100">
+            Transform raw company financials into clear trends, decision-ready ratios, and evidence-backed insights.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <button type="button" onClick={() => setSetupOpen(true)} className="btn bg-white text-accent-800 shadow-sm hover:bg-blue-50">Create an analysis <span aria-hidden="true">→</span></button>
+            <button type="button" onClick={openSample} disabled={busy} className="btn border border-white/30 bg-white/10 text-white hover:bg-white/20">
+              {busy ? 'Loading…' : 'Explore sample data'}
+            </button>
+          </div>
+        </div>
+        <div className="mt-8 grid max-w-xl grid-cols-3 gap-3 border-t border-white/20 pt-5 text-white/90 sm:mt-10">
+          <div><p className="text-xl font-semibold">64+</p><p className="text-2xs text-blue-100">calculated metrics</p></div>
+          <div><p className="text-xl font-semibold">100%</p><p className="text-2xs text-blue-100">traceable evidence</p></div>
+          <div><p className="text-xl font-semibold">0</p><p className="text-2xs text-blue-100">silent assumptions</p></div>
+        </div>
+      </section>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <button type="button" onClick={() => setSetupOpen(true)} className="surface px-4 py-3.5 text-left transition-colors hover:border-accent-300">
+        <button type="button" onClick={() => setSetupOpen(true)} className="feature-card px-5 py-5 text-left transition-transform hover:-translate-y-0.5">
+          <span className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-accent-50 text-lg text-accent-700 dark:bg-accent-700/20">＋</span>
           <p className="text-[13px] font-semibold text-ink-900 dark:text-ink-50">Create a new analysis</p>
           <p className="mt-1 text-[12.5px] leading-relaxed text-ink-600 dark:text-ink-400">
             Set up the company, then enter financial data in the spreadsheet-style grid or import it from Excel.
           </p>
         </button>
 
-        <button type="button" onClick={() => { if (current) navigate('/data'); else setSetupOpen(true); }} className="surface px-4 py-3.5 text-left transition-colors hover:border-accent-300">
+        <button type="button" onClick={() => { if (current) navigate('/data'); else setSetupOpen(true); }} className="feature-card px-5 py-5 text-left transition-transform hover:-translate-y-0.5">
+          <span className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-positive-50 text-lg text-positive-700 dark:bg-positive-700/20">↥</span>
           <p className="text-[13px] font-semibold text-ink-900 dark:text-ink-50">Upload an Excel file</p>
           <p className="mt-1 text-[12.5px] leading-relaxed text-ink-600 dark:text-ink-400">
             Any workbook is accepted. Terminology is matched against a financial dictionary and you confirm the mapping before anything is imported.
           </p>
         </button>
 
-        <a href={api.urls.template()} className="surface px-4 py-3.5 text-left transition-colors hover:border-accent-300" download>
+        <a href={api.urls.template()} className="feature-card px-5 py-5 text-left transition-transform hover:-translate-y-0.5" download>
+          <span className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-caution-50 text-lg text-caution-700 dark:bg-caution-700/20">↓</span>
           <p className="text-[13px] font-semibold text-ink-900 dark:text-ink-50">Download the Excel template</p>
           <p className="mt-1 text-[12.5px] leading-relaxed text-ink-600 dark:text-ink-400">
             Six sheets covering company information, the three statements, share data and optional segment data.

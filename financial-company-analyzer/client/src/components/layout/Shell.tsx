@@ -78,15 +78,15 @@ export function Shell({ children }: { children: ReactNode }) {
     <div className="flex h-full min-h-screen flex-col lg:flex-row">
       {/* Sidebar */}
       <aside
-        className={`${mobileOpen ? 'block' : 'hidden'} w-full shrink-0 border-b border-ink-200 bg-white lg:block lg:w-56 lg:border-b-0 lg:border-r dark:border-ink-800 dark:bg-ink-900`}
+        className={`${mobileOpen ? 'block' : 'hidden'} w-full shrink-0 border-b border-ink-200 bg-white/95 lg:block lg:w-60 lg:border-b-0 lg:border-r dark:border-ink-800 dark:bg-ink-900`}
       >
         <div className="flex h-full flex-col">
           <button
             type="button"
             onClick={() => { navigate('/'); setMobileOpen(false); }}
-            className="flex items-center gap-2 px-4 py-3.5 text-left"
+            className="group flex items-center gap-2 px-4 py-4 text-left"
           >
-            <span className="flex h-6 w-6 items-center justify-center rounded bg-accent-700 text-[11px] font-bold text-white">FA</span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-accent-500 to-positive-500 text-[11px] font-bold text-white shadow-sm transition-transform group-hover:rotate-6">FA</span>
             <span className="text-[13px] font-semibold leading-tight text-ink-900 dark:text-ink-50">
               Financial<br />Company Analyzer
             </span>
@@ -106,7 +106,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="border-t border-ink-200 px-3 py-2.5 dark:border-ink-800">
-            <div className="mb-2 flex items-center gap-1" role="group" aria-label="Colour theme">
+            <div className="mb-2 flex items-center gap-1 rounded-lg bg-ink-50 p-1 dark:bg-ink-950" role="group" aria-label="Colour theme">
               {(['light', 'dark', 'system'] as const).map((option) => (
                 <button
                   key={option}
@@ -200,7 +200,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <main className="flex-1 px-4 py-4 lg:px-6 lg:py-5">{children}</main>
+        <main className="flex-1 px-4 py-5 lg:px-8 lg:py-7">{children}</main>
 
         <footer className="border-t border-ink-200 px-4 py-2.5 text-2xs text-ink-400 dark:border-ink-800 dark:text-ink-500 lg:px-6">
           All metrics are calculated deterministically from the data you entered. Figures shown as “n/a” could not be calculated and are not zero.
