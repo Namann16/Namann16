@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line, LineChart,
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -112,6 +112,7 @@ export function FinancialChart({
   const mode = useChartMode();
   const chrome = CHROME[mode];
   const [showTable, setShowTable] = useState(false);
+  const chartId = useId().replace(/:/g, '');
 
   if (!hasData(data, series)) {
     return (
@@ -131,6 +132,7 @@ export function FinancialChart({
       <XAxis
         dataKey="period" tick={axisTick} tickLine={false}
         axisLine={{ stroke: chrome.axis, strokeWidth: 1 }} dy={4}
+        padding={{ left: 8, right: 8 }}
       />
       <YAxis
         tick={axisTick} tickLine={false} axisLine={false}
@@ -179,8 +181,9 @@ export function FinancialChart({
           {axes}{tooltip}{legend}{referenceLine}
           {series.map((s, i) => (
             <Bar
-              key={s.key} dataKey={s.key} name={s.key} radius={[3, 3, 0, 0]}
+                key={s.key} dataKey={s.key} name={s.key} radius={[5, 5, 1, 1]}
               stackId={stacked ? 'stack' : undefined} fill={colourFor(s, i, mode)}
+                minPointSize={2} animationDuration={500}
             />
           ))}
         </BarChart>
@@ -192,7 +195,7 @@ export function FinancialChart({
             {series.map((s, i) => {
               const colour = colourFor(s, i, mode);
               return (
-                <linearGradient key={s.key} id={`fca-grad-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+                <linearGradient key={s.key} id={`fca-grad-${chartId}-${s.key}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={colour} stopOpacity={0.24} />
                   <stop offset="100%" stopColor={colour} stopOpacity={0.02} />
                 </linearGradient>
@@ -205,8 +208,9 @@ export function FinancialChart({
             return (
               <Area
                 key={s.key} dataKey={s.key} name={s.key} type="monotone"
-                stroke={colour} strokeWidth={2} fill={`url(#fca-grad-${s.key})`}
-                connectNulls dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: chrome.surface }}
+                stroke={colour} strokeWidth={2.5} fill={`url(#fca-grad-${chartId}-${s.key})`}
+                connectNulls dot={false} activeDot={{ r: 5, strokeWidth: 2, stroke: chrome.surface }}
+                animationDuration={650}
               />
             );
           })}
@@ -221,8 +225,8 @@ export function FinancialChart({
             return (
               <Line
                 key={s.key} dataKey={s.key} name={s.key} type="monotone"
-                stroke={colour} strokeWidth={2} connectNulls
-                dot={{ r: 2.5, strokeWidth: 0, fill: colour }}
+                stroke={colour} strokeWidth={2.5} connectNulls
+                dot={{ r: 3, strokeWidth: 2, stroke: chrome.surface, fill: colour }}
                 // A 2px surface ring keeps overlapping points readable where series cross.
                 activeDot={{ r: 5, strokeWidth: 2, stroke: chrome.surface }}
               />
@@ -239,12 +243,12 @@ export function FinancialChart({
           if (s.type === 'bar') {
             return (
               <Bar key={s.key} dataKey={s.key} name={s.key} fill={colour} radius={[3, 3, 0, 0]}
-                   stackId={stacked ? 'stack' : undefined} />
+                   stackId={stacked ? 'stack' : undefined} minPointSize={2} />
             );
           }
           return (
             <Line key={s.key} dataKey={s.key} name={s.key} type="monotone" stroke={colour}
-                  strokeWidth={2} connectNulls dot={{ r: 2.5, strokeWidth: 0, fill: colour }}
+                  strokeWidth={2.5} connectNulls dot={{ r: 3, strokeWidth: 2, stroke: chrome.surface, fill: colour }}
                   activeDot={{ r: 5, strokeWidth: 2, stroke: chrome.surface }} />
           );
         })}
@@ -253,7 +257,7 @@ export function FinancialChart({
   );
 
   return (
-    <div>
+    <div className="chart-frame">
       <div className="mb-1 flex justify-end">
         <button
           type="button"
