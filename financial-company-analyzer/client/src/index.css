@@ -734,16 +734,16 @@
    * items the delay stops growing, because a reader should never be made to wait for content.
    */
   .stagger > * {
-    animation: rise-in var(--duration-base) var(--ease-out) both;
+    animation: rise-in 460ms var(--ease-out) both;
   }
-  .stagger > *:nth-child(1) { animation-delay: 0ms; }
-  .stagger > *:nth-child(2) { animation-delay: 40ms; }
-  .stagger > *:nth-child(3) { animation-delay: 80ms; }
-  .stagger > *:nth-child(4) { animation-delay: 120ms; }
-  .stagger > *:nth-child(5) { animation-delay: 160ms; }
-  .stagger > *:nth-child(6) { animation-delay: 200ms; }
-  .stagger > *:nth-child(7) { animation-delay: 240ms; }
-  .stagger > *:nth-child(n + 8) { animation-delay: 280ms; }
+  .stagger > *:nth-child(1) { animation-delay: 20ms; }
+  .stagger > *:nth-child(2) { animation-delay: 85ms; }
+  .stagger > *:nth-child(3) { animation-delay: 150ms; }
+  .stagger > *:nth-child(4) { animation-delay: 215ms; }
+  .stagger > *:nth-child(5) { animation-delay: 280ms; }
+  .stagger > *:nth-child(6) { animation-delay: 345ms; }
+  .stagger > *:nth-child(7) { animation-delay: 410ms; }
+  .stagger > *:nth-child(n + 8) { animation-delay: 475ms; }
 
   @keyframes rise-in {
     from { opacity: 0; transform: translateY(10px) scale(0.995); }

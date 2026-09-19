@@ -107,7 +107,7 @@ export default function Landing() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="stagger mx-auto max-w-6xl space-y-6">
       <section className="hero-glow hero-video animate-fade-up rounded-2xl px-6 py-8 sm:px-8 sm:py-10">
         <video
           className="hero-video-media"

@@ -303,7 +303,7 @@ export default function DataInput() {
   let section = '';
 
   return (
-    <div className="space-y-4">
+    <div className="stagger space-y-4">
       <PageHeader
         title="Data Input"
         description="Enter financial data year by year, or import it from a spreadsheet. Leave a cell blank when a figure is not available — a blank is never treated as zero, and totals you leave empty are derived automatically and marked as calculated."
