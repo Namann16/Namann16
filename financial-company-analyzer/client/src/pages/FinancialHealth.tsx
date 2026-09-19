@@ -1,6 +1,7 @@
 import { useWorkspace } from '../state/WorkspaceContext';
 import { Badge, Card, EmptyState, PageHeader } from '../components/ui/primitives';
 import type { HealthLabel } from '@fca/core';
+import { useAnimatedNumber } from '../lib/motion';
 
 const TONE: Record<HealthLabel, 'positive' | 'negative' | 'neutral' | 'caution'> = {
   Excellent: 'positive', Strong: 'positive', Healthy: 'positive',
@@ -15,7 +16,7 @@ function ScoreBar({ score }: { score: number | null }) {
   const colour = score >= 72 ? 'bg-positive-500' : score >= 58 ? 'bg-accent-600/[0.08]0' : score >= 44 ? 'bg-caution-500' : 'bg-negative-500';
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-200 dark:bg-ink-800">
-      <div className={`h-full rounded-full ${colour}`} style={{ width: `${score}%` }} />
+      <div className={`health-score-fill h-full rounded-full ${colour}`} style={{ width: `${score}%` }} />
     </div>
   );
 }
@@ -25,6 +26,7 @@ export default function FinancialHealth() {
   if (!analysis) return null;
 
   const { health } = analysis;
+  const animatedOverall = useAnimatedNumber(health.overall);
 
   if (health.overall === null) {
     return (
@@ -51,7 +53,7 @@ export default function FinancialHealth() {
           <div>
             <p className="label-caps">Overall assessment</p>
             <div className="mt-1 flex items-baseline gap-3">
-              <span className="tnum text-4xl font-semibold text-ink-900 dark:text-ink-50">{health.overall}</span>
+              <span className="tnum text-4xl font-semibold text-ink-900 dark:text-ink-50">{animatedOverall === null ? '—' : Math.round(animatedOverall)}</span>
               <span className="text-lg text-ink-400">/ 100</span>
               <Badge tone={TONE[health.label]}>{health.label}</Badge>
             </div>

@@ -137,7 +137,7 @@ export function ScenarioPanel({
         {error && <p className="text-[12px] text-negative-600">{error}</p>}
 
         {result && (
-          <div className="hairline-t pt-3">
+          <div className="scenario-result animate-in hairline-t pt-3">
             <div className="grid gap-2 sm:grid-cols-3">
               <div className="surface px-3 py-2">
                 <p className="label-caps">Health score change</p>

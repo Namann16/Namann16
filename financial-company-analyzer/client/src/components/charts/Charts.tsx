@@ -339,7 +339,13 @@ export function ChartPair({
 }
 
 /** A compact inline trend line for table rows. Decorative context, not a substitute for the value. */
-export function Sparkline({ values, tone = 'accent' }: { values: (number | null)[]; tone?: 'accent' | 'positive' | 'negative' }) {
+export function Sparkline({
+  values, tone = 'accent', redrawKey = 0,
+}: {
+  values: (number | null)[];
+  tone?: 'accent' | 'positive' | 'negative';
+  redrawKey?: number;
+}) {
   const mode = useChartMode();
   const points = values.filter((v): v is number => typeof v === 'number');
   if (points.length < 2) return <span className="text-2xs text-ink-400">—</span>;
@@ -364,6 +370,7 @@ export function Sparkline({ values, tone = 'accent' }: { values: (number | null)
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="inline-block align-middle" aria-hidden="true">
       {/* The line draws itself left to right, which is the direction it is read in. */}
       <path
+        key={redrawKey}
         className="draw-in"
         style={{ '--dash-length': dashLength } as CSSProperties}
         d={path}

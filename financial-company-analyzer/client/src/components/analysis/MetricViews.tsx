@@ -42,12 +42,14 @@ export function KpiCard({
     : 'neutral';
   const rolling = useAnimatedNumber(available ? (latest.value as number) : null);
   const flash = useChangedFlash(available ? latest.value : null);
+  const [sparklineRedraw, setSparklineRedraw] = useState(0);
 
   return (
     <div
       className={`surface px-3 py-2.5 transition-colors ${
         emphasise ? 'ring-1 ring-inset ring-accent-600/25 dark:ring-accent-500/30' : ''
       }`}
+      onMouseEnter={() => setSparklineRedraw((current) => current + 1)}
     >
       <div className="flex items-start justify-between gap-1">
         <span className="label-caps leading-tight">{label}</span>
@@ -96,7 +98,13 @@ export function KpiCard({
         )}
       </div>
       <div className="mt-2 flex items-end justify-between gap-2">
-        {values.length > 1 ? <Sparkline values={values} tone={tone === 'neutral' ? 'accent' : tone} /> : <span />}
+        {values.length > 1 ? (
+          <Sparkline
+            values={values}
+            tone={tone === 'neutral' ? 'accent' : tone}
+            redrawKey={sparklineRedraw}
+          />
+        ) : <span />}
         {available && benchmark && (
           <span className={`text-right text-2xs ${TONE_TEXT[benchmarkTone]}`}>
             <span className="block font-semibold">{benchmarkTone === 'positive' ? 'Above' : 'Below'} benchmark</span>
