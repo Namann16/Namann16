@@ -2,9 +2,10 @@ import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { LineItemDef, Num, StatementKey } from '@fca/core';
 import { useWorkspace } from '../state/WorkspaceContext';
+import { BusinessContextPanel } from '../components/analysis/BusinessContextPanel';
 import { api, ApiError, type CommitResponse, type ParseResponse } from '../api/client';
 import { Badge, Banner, Card, EmptyState, Field, Modal, PageHeader, SourceDot, Spinner } from '../components/ui/primitives';
-import { fmtCtx, formatCurrency } from '../lib/display';
+import { fmtCtx, formatCurrency, unitsLabel } from '../lib/display';
 
 /** Parse a typed cell. Empty means "not available" and is stored as an absent value, never zero. */
 function parseInput(text: string): { value: Num; error: string | null } {
@@ -34,7 +35,7 @@ function nextPeriodLabel(existing: string[]): string {
 }
 
 export default function DataInput() {
-  const { current, analysis, meta, setPeriodsLocal, savePeriods, dirty, loading } = useWorkspace();
+  const { current, analysis, meta, setPeriodsLocal, savePeriods, updateProfile, dirty, loading } = useWorkspace();
   const [statement, setStatement] = useState<StatementKey>('income');
   const [cellErrors, setCellErrors] = useState<Record<string, string>>({});
   const [pasteResult, setPasteResult] = useState<{ filled: number; failures: string[] } | null>(null);
@@ -481,6 +482,15 @@ export default function DataInput() {
               </table>
             </div>
           </Card>
+
+          <BusinessContextPanel
+            periods={current.periods}
+            businessContext={current.businessContext}
+            unitsLabel={unitsLabel(current.company.units)}
+            busy={loading}
+            onSaveContext={(context) => updateProfile({ businessContext: context })}
+            onSavePeriods={(next) => savePeriods(next)}
+          />
 
           {analysis && <DataQualityPanel analysis={analysis} />}
         </>
