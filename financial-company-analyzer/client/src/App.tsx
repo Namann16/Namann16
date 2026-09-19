@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { Shell } from './components/layout/Shell';
 import { useWorkspace } from './state/WorkspaceContext';
 import { AnalysisSkeleton, Banner, Card, EmptyState, Spinner } from './components/ui/primitives';
@@ -45,17 +46,49 @@ function RequiresCompany({ children }: { children: JSX.Element }) {
   return children;
 }
 
+function EntrySplash({ onDone }: { onDone: () => void }) {
+  const [leaving, setLeaving] = useState(false);
+
+  useEffect(() => {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const revealDuration = reduced ? 120 : 1450;
+    const leaveTimer = window.setTimeout(() => setLeaving(true), revealDuration);
+    const doneTimer = window.setTimeout(onDone, revealDuration + (reduced ? 0 : 420));
+    return () => {
+      window.clearTimeout(leaveTimer);
+      window.clearTimeout(doneTimer);
+    };
+  }, [onDone]);
+
+  return (
+    <div className={`entry-splash${leaving ? ' entry-splash-leaving' : ''}`} role="status" aria-label="Loading Financified">
+      <div className="entry-splash-orbit entry-splash-orbit-one" aria-hidden="true" />
+      <div className="entry-splash-orbit entry-splash-orbit-two" aria-hidden="true" />
+      <div className="entry-splash-content">
+        <span className="entry-splash-kicker">Financial clarity, amplified</span>
+        <h1 className="entry-splash-wordmark">
+          <span>Financified</span>
+        </h1>
+        <span className="entry-splash-rule" aria-hidden="true" />
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const { meta, metaError, connecting, retryConnection } = useWorkspace();
   const location = useLocation();
+  const [showEntrySplash, setShowEntrySplash] = useState(true);
+  const finishEntrySplash = () => setShowEntrySplash(false);
 
+  let appContent: JSX.Element;
   if (metaError) {
     // The same browser error covers "host unreachable" and "origin refused by CORS", so the
     // guidance below names both rather than asserting a cause it cannot actually distinguish.
     const isLocal = typeof window !== 'undefined' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
     const target = API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
-    return (
+    appContent = (
       <div className="mx-auto max-w-2xl p-6">
         <Card title="Cannot reach the analysis server">
           <Banner tone="negative">{metaError}</Banner>
@@ -100,18 +133,14 @@ export default function App() {
         </Card>
       </div>
     );
-  }
-
-  if (!meta) {
-    return <div className="flex h-screen items-center justify-center"><Spinner label="Loading workspace" /></div>;
-  }
-
-  const guarded = (element: JSX.Element) => <RequiresCompany>{element}</RequiresCompany>;
-
-  return (
-    <Shell>
-      <div key={location.pathname} className="route-transition">
-        <Routes>
+  } else if (!meta) {
+    appContent = <div className="flex h-screen items-center justify-center"><Spinner label="Loading workspace" /></div>;
+  } else {
+    const guarded = (element: JSX.Element) => <RequiresCompany>{element}</RequiresCompany>;
+    appContent = (
+      <Shell>
+        <div key={location.pathname} className="route-transition">
+          <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/dashboard" element={guarded(<Dashboard />)} />
           <Route path="/data" element={<DataInput />} />
@@ -129,8 +158,16 @@ export default function App() {
           <Route path="/report" element={guarded(<Report />)} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
-    </Shell>
+          </Routes>
+        </div>
+      </Shell>
+    );
+  }
+
+  return (
+    <>
+      {appContent}
+      {showEntrySplash && <EntrySplash onDone={finishEntrySplash} />}
+    </>
   );
 }

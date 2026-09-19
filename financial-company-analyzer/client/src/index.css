@@ -132,10 +132,108 @@
     }
   }
 
+  @keyframes splash-in {
+    0% { opacity: 0; transform: scale(0.72) rotate(-5deg); filter: blur(18px); }
+    55% { opacity: 1; transform: scale(1.06) rotate(1deg); filter: blur(0); }
+    100% { opacity: 1; transform: scale(1) rotate(0); filter: blur(0); }
+  }
+  @keyframes splash-orbit {
+    from { transform: rotate(0deg) translateX(8rem) rotate(0deg); }
+    to { transform: rotate(360deg) translateX(8rem) rotate(-360deg); }
+  }
+  @keyframes splash-rule {
+    from { transform: scaleX(0); opacity: 0; }
+    to { transform: scaleX(1); opacity: 1; }
+  }
+  @keyframes splash-out {
+    to { opacity: 0; transform: scale(1.05); filter: blur(10px); }
+  }
+
   /* Financial figures are read in columns, so digits must not shift width. */
   .tnum {
     font-variant-numeric: tabular-nums;
     font-feature-settings: 'tnum' 1;
+  }
+
+  .entry-splash {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    color: white;
+    background:
+      radial-gradient(circle at 50% 42%, rgba(10, 132, 255, 0.3), transparent 22rem),
+      linear-gradient(135deg, #020617 0%, #071a3a 48%, #031c1a 100%);
+    animation: splash-in 550ms var(--ease-out) both;
+  }
+  .entry-splash-leaving {
+    pointer-events: none;
+    animation: splash-out 420ms var(--ease-out) both;
+  }
+  .entry-splash-content {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    justify-items: center;
+    gap: 0.75rem;
+  }
+  .entry-splash-kicker {
+    color: rgba(186, 230, 253, 0.8);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    animation: fadeUp 500ms 220ms var(--ease-out) both;
+  }
+  .entry-splash-wordmark {
+    margin: 0;
+    font-size: clamp(3.5rem, 12vw, 8rem);
+    font-weight: 800;
+    letter-spacing: -0.08em;
+    line-height: 0.9;
+    background: linear-gradient(100deg, #fff 10%, #8bd5ff 42%, #7df3bf 72%, #fff 95%);
+    background-size: 220% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 0 42px rgba(82, 202, 255, 0.22);
+    animation: splash-in 700ms 80ms var(--ease-spring) both, shimmer 2.4s 700ms linear infinite;
+  }
+  .entry-splash-rule {
+    width: min(12rem, 45vw);
+    height: 2px;
+    border-radius: 99px;
+    background: linear-gradient(90deg, transparent, #7df3bf, #8bd5ff, transparent);
+    animation: splash-rule 650ms 480ms var(--ease-out) both;
+  }
+  .entry-splash-orbit {
+    position: absolute;
+    width: 7rem;
+    height: 7rem;
+    border: 1px solid rgba(125, 243, 191, 0.24);
+    border-radius: 50%;
+    animation: splash-orbit 5s linear infinite;
+  }
+  .entry-splash-orbit::after {
+    content: '';
+    position: absolute;
+    top: -0.25rem;
+    left: 50%;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: #7df3bf;
+    box-shadow: 0 0 1rem #7df3bf;
+  }
+  .entry-splash-orbit-one { transform: rotate(20deg) translateX(8rem) rotate(-20deg); }
+  .entry-splash-orbit-two {
+    width: 14rem;
+    height: 14rem;
+    border-color: rgba(139, 213, 255, 0.13);
+    animation-duration: 8s;
+    animation-direction: reverse;
   }
 
   /*
@@ -625,6 +723,7 @@
       from { opacity: 0; transform: translateY(24px); }
       to { opacity: 1; transform: none; }
     }
+    .entry-splash-wordmark { animation: none; }
   }
 
   /*
