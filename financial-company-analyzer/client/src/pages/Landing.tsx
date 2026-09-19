@@ -108,7 +108,19 @@ export default function Landing() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <section className="hero-glow animate-fade-up rounded-2xl px-6 py-8 sm:px-8 sm:py-10">
+      <section className="hero-glow hero-video animate-fade-up rounded-2xl px-6 py-8 sm:px-8 sm:py-10">
+        <video
+          className="hero-video-media"
+          autoPlay
+          loop
+          muted
+          playsInline
+          poster="/hero-video/market-pulse.gif"
+          aria-hidden="true"
+        >
+          <source src="/hero-video/market-pulse.mp4" type="video/mp4" />
+        </video>
+        <div className="hero-video-scrim" aria-hidden="true" />
         <div className="max-w-2xl">
           <p className="mb-3 text-footnote font-medium text-accent-300">Decision intelligence for finance teams</p>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">See the story behind the numbers.</h1>
