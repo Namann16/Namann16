@@ -15,8 +15,8 @@ import type {
  * API access layer.
  *
  * By default the client calls /api on its own origin: in development the Vite proxy forwards it
- * to the server, and in a normal deployment the API is served behind the same host. Nothing about
- * the API location is then compiled into the bundle.
+ * to the server, and Vercel rewrites it to the separately hosted Render API. Keeping that path
+ * same-origin also means preview aliases do not need individual CORS entries.
  *
  * VITE_API_BASE_URL is only needed when the API genuinely lives on a different origin, and that
  * origin must be listed in the server's CORS_ORIGIN. No secret is ever read here.
