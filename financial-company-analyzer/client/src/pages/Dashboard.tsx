@@ -131,7 +131,7 @@ export default function Dashboard() {
         />
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-positive-200 bg-positive-50/70 px-3 py-2 text-[12px] text-positive-800 dark:border-positive-700/40 dark:bg-positive-700/10 dark:text-positive-100">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-positive-500/[0.12] px-3 py-2 text-subheadline text-positive-600 dark:bg-positive-400/[0.14] dark:text-positive-400">
         <span className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-positive-500 shadow-[0_0_0_3px_rgba(18,183,106,0.14)]" aria-hidden="true" />
           {connecting ? 'Refreshing analysis connection…' : 'Analysis is live and up to date'}
@@ -174,7 +174,7 @@ export default function Dashboard() {
                 ['Free cash flow', metrics['fcf']],
                 ['Net debt / EBITDA', metrics['netDebtToEbitda']],
               ] as [string, MetricSeries | undefined][]).map(([label, series]) => (
-                <div key={label} className="flex items-center justify-between gap-3 rounded-lg border border-ink-200 bg-ink-50/60 px-3 py-2.5 dark:border-ink-800 dark:bg-ink-950/40">
+                <div key={label} className="flex items-center justify-between gap-3 rounded-xl bg-ink-500/[0.06] px-3 py-2.5 dark:bg-ink-400/[0.08]">
                   <div className="min-w-0">
                     <p className="label-caps">{label}</p>
                     <p className="mt-1 text-[12.5px] font-semibold">
@@ -216,13 +216,13 @@ export default function Dashboard() {
         actions={<Link className="btn-ghost" to="/health">Breakdown</Link>}
       >
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 xl:grid-cols-8">
-          <div className="rounded-md border border-accent-200 bg-accent-50 px-3 py-2.5 dark:border-accent-700/40 dark:bg-accent-700/15">
+          <div className="rounded-xl bg-accent-600/[0.10] px-3 py-2.5 dark:bg-accent-500/[0.16]">
             <p className="label-caps">Overall</p>
             <p className="tnum text-xl font-semibold text-accent-800 dark:text-accent-100">{health.overall ?? '—'}</p>
             <Badge tone={HEALTH_TONE[health.label] ?? 'neutral'}>{health.label}</Badge>
           </div>
           {health.pillars.map((pillar) => (
-            <div key={pillar.key} className="rounded-md border border-ink-200 px-3 py-2.5 dark:border-ink-800">
+            <div key={pillar.key} className="rounded-xl bg-ink-500/[0.06] px-3 py-2.5 dark:bg-ink-400/[0.08]">
                 <p className="label-caps leading-tight" title={pillar.label}>{pillar.label}</p>
               <p className="tnum text-xl font-semibold">{pillar.score ?? '—'}</p>
               <Badge tone={HEALTH_TONE[pillar.label_] ?? 'neutral'}>{pillar.label_}</Badge>
@@ -241,7 +241,7 @@ export default function Dashboard() {
             {analysis.anomalies.slice(0, 4).map((anomaly) => {
               const passed = anomaly.candidates.find((candidate) => candidate.evidence.passed);
               return (
-                <div key={`${anomaly.metric}-${anomaly.period}`} className="rounded-lg border border-ink-200 px-3 py-2.5 dark:border-ink-800">
+                <div key={`${anomaly.metric}-${anomaly.period}`} className="rounded-xl bg-ink-500/[0.06] px-3 py-2.5 dark:bg-ink-400/[0.08]">
                   <div className="flex items-center justify-between gap-2">
                     <p className="label-caps">
                       {analysis.metrics[anomaly.metric]?.label ?? anomaly.metric} · {anomaly.period}

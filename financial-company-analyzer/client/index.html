@@ -4,17 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      media="print"
-      onload="this.media='all'"
-    />
-    <noscript>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
-    </noscript>
+    <!--
+      No webfont. The type stack resolves to SF Pro through -apple-system, which is the real system
+      face rendered with the system's own optical sizing and hinting rather than a webfont
+      approximation of it. It also removes a third-party request from the critical path and the
+      flash of fallback text that came with it.
+    -->
+    <meta name="color-scheme" content="light dark" />
+    <!-- Lets the browser tint its own chrome to match the page, as Safari does on iOS. -->
+    <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="Transform raw company financials into structured financial analysis, trends, ratios, and actionable insights." />
     <title>Financial Company Analyzer</title>
     <script>

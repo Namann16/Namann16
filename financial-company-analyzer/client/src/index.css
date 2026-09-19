@@ -2,25 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Apple Human Interface Guidelines component layer.
+ *
+ * The structural change from the previous design: hierarchy is carried by LAYERED SURFACES and
+ * HAIRLINE SEPARATORS, not by borders. Apple almost never draws a box around content — a card is
+ * a lighter surface sitting on a grouped background, and a division inside it is a 0.5px line
+ * inset from the leading edge. Boxes-inside-boxes is the single most un-Apple thing an interface
+ * can do, and it is what this file removes.
+ */
+
 @layer base {
+  :root {
+    /* Apple's label hierarchy is opacity over the label colour, not separate greys. */
+    --label: 0 0 0;
+    --label-secondary: rgba(60, 60, 67, 0.6);
+    --label-tertiary: rgba(60, 60, 67, 0.3);
+    --label-quaternary: rgba(60, 60, 67, 0.18);
+    --separator: rgba(60, 60, 67, 0.29);
+    --separator-opaque: #C6C6C8;
+    /* Fills tint a control against whatever is behind it, so one value works on any surface. */
+    --fill: rgba(120, 120, 128, 0.2);
+    --fill-secondary: rgba(120, 120, 128, 0.16);
+    --fill-tertiary: rgba(120, 120, 128, 0.12);
+    --fill-quaternary: rgba(120, 120, 128, 0.08);
+    --material: rgba(255, 255, 255, 0.72);
+    --surface: #FFFFFF;
+    --surface-raised: #FFFFFF;
+    --page: #F2F2F7;
+  }
+
+  .dark {
+    --label: 255 255 255;
+    --label-secondary: rgba(235, 235, 245, 0.6);
+    --label-tertiary: rgba(235, 235, 245, 0.3);
+    --label-quaternary: rgba(235, 235, 245, 0.18);
+    --separator: rgba(84, 84, 88, 0.65);
+    --separator-opaque: #38383A;
+    --fill: rgba(120, 120, 128, 0.36);
+    --fill-secondary: rgba(120, 120, 128, 0.32);
+    --fill-tertiary: rgba(120, 120, 128, 0.24);
+    --fill-quaternary: rgba(120, 120, 128, 0.18);
+    --material: rgba(30, 30, 32, 0.72);
+    --surface: #1C1C1E;
+    --surface-raised: #2C2C2E;
+    --page: #000000;
+  }
+
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Apple's own text rendering leaves optical sizing to the system face. */
+    font-optical-sizing: auto;
   }
 
   body {
-    @apply bg-ink-50 text-ink-900 font-sans text-[13px] antialiased;
-    background-image:
-      radial-gradient(circle at 8% 0%, rgba(43, 100, 173, 0.08), transparent 28rem),
-      radial-gradient(circle at 92% 10%, rgba(18, 183, 106, 0.05), transparent 24rem);
-    background-attachment: fixed;
-    /* Contextual alternates off: financial text has no need for ligature substitutions
-       that can alter how a figure or a code reads. */
+    @apply font-sans text-body antialiased;
+    background: var(--page);
+    color: rgb(var(--label));
+    /* Deference: no gradient wash behind the content. The page is a surface, not a picture. */
     font-feature-settings: 'calt' 0;
-  }
-
-  .dark body {
-    @apply bg-ink-950 text-ink-100;
   }
 
   /* Financial figures are read in columns, so digits must not shift width. */
@@ -29,221 +70,383 @@
     font-feature-settings: 'tnum' 1;
   }
 
-  ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-track { @apply bg-transparent; }
-  ::-webkit-scrollbar-thumb { @apply bg-ink-300 rounded-full border-2 border-solid border-transparent bg-clip-content; }
-  .dark ::-webkit-scrollbar-thumb { @apply bg-ink-700; }
+  /*
+   * Continuous curvature. Apple's rounded rectangles are squircles, not circular arcs — the
+   * curvature eases in rather than starting abruptly, which is why an Apple radius looks smaller
+   * than its nominal value. Where the browser supports it we get the real thing; everywhere else
+   * the generous radii in the token layer approximate it.
+   */
+  @supports (corner-shape: squircle) {
+    .surface, .btn, .input, .sheet, .segmented, .segmented-thumb, .inset-group {
+      corner-shape: squircle;
+    }
+  }
 
+  /* Apple scrollbars are overlay indicators: they appear on scroll and take no layout space. */
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--label-tertiary);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--label-secondary); background-clip: content-box; }
+
+  /* The keyboard focus ring is systemBlue at 3px with a surface-coloured gap, as on macOS. */
   :focus-visible {
-    @apply outline-none ring-2 ring-accent-400 ring-offset-1 ring-offset-white;
+    @apply outline-none;
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px theme('colors.accent.600');
+    border-radius: 0.375rem;
   }
   .dark :focus-visible {
-    @apply ring-offset-ink-950;
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px theme('colors.accent.500');
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   }
 }
 
 @layer components {
+  /*
+   * A card. No border — it is a lighter surface on the grouped background, which is how depth
+   * works in every Apple interface. The shadow is barely there and exists only so a white card
+   * does not dissolve into a near-white page.
+   */
   .surface {
-    @apply bg-white border border-ink-200 rounded-xl shadow-card;
-    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    @apply rounded-xl shadow-card;
+    background: var(--surface);
+    transition: box-shadow 250ms cubic-bezier(0.25, 0.1, 0.25, 1),
+                transform 250ms cubic-bezier(0.25, 0.1, 0.25, 1);
   }
-  .surface:hover {
-    @apply border-ink-300 shadow-raised;
-  }
-  .dark .surface {
-    @apply bg-ink-900 border-ink-800/70;
-  }
+  /* Deference: a card that is not interactive does not react to the pointer. */
 
-  /* A card that responds to pointer interaction — used for the actionable tiles on Home. */
+  /* A card that IS a control. Apple lifts it very slightly and never changes its colour. */
   .surface-interactive {
-    @apply surface transition-all duration-150;
+    @apply surface cursor-pointer;
   }
-  .surface-interactive:hover {
-    @apply border-accent-300 shadow-raised -translate-y-px;
-  }
-  .dark .surface-interactive:hover {
-    @apply border-accent-600;
+  .surface-interactive:hover { @apply shadow-raised; transform: translateY(-1px); }
+  .surface-interactive:active { transform: translateY(0) scale(0.995); @apply shadow-card; }
+
+  /* Hairline separator — 0.5px where the display can render it, as on Apple hardware. */
+  .hairline { border-bottom: 0.5px solid var(--separator); }
+  .hairline-t { border-top: 0.5px solid var(--separator); }
+  @media (-webkit-min-device-pixel-ratio: 1.5), (min-resolution: 144dpi) {
+    .hairline { border-bottom-width: 0.5px; }
+    .hairline-t { border-top-width: 0.5px; }
   }
 
+  /*
+   * Inset grouped list — the Settings-app pattern. Rows share one surface, separated by hairlines
+   * that stop short of the leading edge so the eye follows the row labels down the list.
+   */
+  .inset-group {
+    @apply overflow-hidden rounded-xl;
+    background: var(--surface);
+  }
+  .inset-group > * + * { border-top: 0.5px solid var(--separator); }
+  .inset-group-inset > * + * { border-top: 0.5px solid var(--separator); margin-left: 1rem; }
+
+  /* Secondary label, sentence case. Apple stopped using ALL-CAPS section headers years ago. */
   .label-caps {
-    @apply text-2xs font-semibold uppercase tracking-wider text-ink-500;
+    @apply text-footnote font-normal;
+    color: var(--label-secondary);
+    letter-spacing: 0;
+    text-transform: none;
   }
-  .dark .label-caps {
-    @apply text-ink-400;
+  /* Where a genuine group header is needed, it is a semibold footnote, not small caps. */
+  .group-header {
+    @apply text-footnote font-semibold;
+    color: var(--label-secondary);
   }
 
-  /* KPI tile: the figure dominates, the label recedes, the delta sits quietly beneath. */
+  /* KPI tile: the figure dominates; nothing else on the tile competes with it. */
   .kpi-value {
-    @apply text-kpi font-semibold text-ink-900 tnum;
-  }
-  .dark .kpi-value {
-    @apply text-ink-50;
+    @apply text-title-1 font-semibold tnum;
+    color: rgb(var(--label));
   }
   .kpi-value-muted {
-    @apply text-kpi font-semibold text-ink-400 tnum;
-  }
-  .dark .kpi-value-muted {
-    @apply text-ink-600;
+    @apply text-title-1 font-semibold tnum;
+    color: var(--label-tertiary);
   }
 
-  /* Dense financial table defaults, shared by every statement and ratio grid. */
+  /* ---------------------------------------------------------------- Tables */
+
   .fin-table {
-    @apply w-full border-collapse text-[12.5px];
+    @apply w-full border-collapse text-callout;
   }
   .fin-table th,
   .fin-table td {
-    @apply px-3 py-[6px] border-b border-ink-100 text-right whitespace-nowrap;
-  }
-  .dark .fin-table th,
-  .dark .fin-table td {
-    @apply border-ink-800/60;
+    @apply px-3 py-[7px] text-right whitespace-nowrap;
+    border-bottom: 0.5px solid var(--separator);
   }
   .fin-table thead th {
-    @apply sticky top-0 z-20 bg-ink-50/95 backdrop-blur text-2xs font-semibold uppercase tracking-wider
-           text-ink-500 border-b border-ink-300;
-  }
-  .dark .fin-table thead th {
-    @apply bg-ink-900/95 text-ink-400 border-ink-700;
+    @apply sticky top-0 z-20 text-footnote font-semibold;
+    color: var(--label-secondary);
+    /* A table header is a material: content scrolls under it and stays faintly visible. */
+    background: var(--material);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 0.5px solid var(--separator-opaque);
+    text-transform: none;
+    letter-spacing: 0;
   }
   .fin-table tbody th,
   .fin-table thead th:first-child {
-    @apply text-left font-medium;
+    @apply text-left font-normal;
   }
-  .fin-table tbody tr:hover {
-    @apply bg-accent-50/60;
-  }
-  .dark .fin-table tbody tr:hover {
-    @apply bg-ink-800/40;
-  }
-  /* Keeps the line-item column in view while the year columns scroll horizontally, so a figure
-     is never stranded without its row label. Applied to both the header cell and body cells so
-     the corner stays covered. */
+  .fin-table tbody th { color: rgb(var(--label)); }
+  /* Row highlight is a neutral fill, never a tint of the accent — the accent means "interactive". */
+  .fin-table tbody tr:hover { background: var(--fill-quaternary); }
+
   .fin-table.sticky-labels thead th:first-child,
   .fin-table.sticky-labels tbody th:first-child {
-    @apply sticky left-0 z-10 bg-white;
-  }
-  .dark .fin-table.sticky-labels thead th:first-child,
-  .dark .fin-table.sticky-labels tbody th:first-child {
-    @apply bg-ink-900;
+    @apply sticky left-0 z-10;
+    background: var(--surface);
   }
   .fin-table.sticky-labels thead th:first-child {
-    @apply z-30 bg-ink-50;
+    @apply z-30;
+    background: var(--material);
   }
-  .dark .fin-table.sticky-labels thead th:first-child {
-    @apply bg-ink-900;
-  }
-  /* A hairline that marks where the frozen column ends. */
+  /* The frozen column ends in a hairline, so a figure is never stranded from its row label. */
   .fin-table.sticky-labels thead th:first-child::after,
   .fin-table.sticky-labels tbody th:first-child::after {
     content: '';
-    @apply absolute right-0 top-0 h-full w-px bg-ink-200;
-  }
-  .dark .fin-table.sticky-labels thead th:first-child::after,
-  .dark .fin-table.sticky-labels tbody th:first-child::after {
-    @apply bg-ink-700;
+    @apply absolute right-0 top-0 h-full;
+    width: 0.5px;
+    background: var(--separator);
   }
 
-  /* Horizontal scroller that shows a soft edge when there is more table to the right. */
-  .table-scroll {
-    @apply overflow-x-auto;
-    scrollbar-width: thin;
-  }
+  .table-scroll { @apply overflow-x-auto; scrollbar-width: thin; }
 
   .fin-table tr.row-section td {
-    @apply text-left bg-ink-100/70 text-2xs font-semibold uppercase tracking-wider text-ink-500 py-[5px];
-  }
-  .dark .fin-table tr.row-section td {
-    @apply bg-ink-800/50 text-ink-400;
+    @apply text-left text-footnote font-semibold py-[6px];
+    background: var(--fill-quaternary);
+    color: var(--label-secondary);
+    text-transform: none;
+    letter-spacing: 0;
   }
   .fin-table tr.row-total th,
   .fin-table tr.row-total td {
-    @apply font-semibold border-t border-ink-300 bg-ink-50/60;
-  }
-  .dark .fin-table tr.row-total th,
-  .dark .fin-table tr.row-total td {
-    @apply border-ink-700 bg-ink-800/30;
+    @apply font-semibold;
+    border-top: 0.5px solid var(--separator-opaque);
+    background: var(--fill-quaternary);
   }
 
+  /* ---------------------------------------------------------------- Controls */
+
+  /*
+   * Apple buttons: a filled capsule-ish rectangle for the one primary action, a tinted fill for
+   * secondary, and bare text for tertiary. No borders anywhere — a border on a button is a Material
+   * Design idiom. 28px is the macOS regular control height; 44px minimum comes back on touch.
+   */
   .btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-medium
-           transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed
-           min-h-[32px] active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3 text-callout font-medium
+           disabled:opacity-40 disabled:cursor-not-allowed min-h-[28px] py-[5px];
+    transition: background-color 150ms cubic-bezier(0.25, 0.1, 0.25, 1),
+                transform 150ms cubic-bezier(0.34, 1.26, 0.64, 1),
+                opacity 150ms linear;
+    -webkit-user-select: none;
+    user-select: none;
   }
+  .btn:active:not(:disabled) { transform: scale(0.96); }
+  @media (pointer: coarse) {
+    .btn { @apply min-h-[44px] px-4 text-body; }
+  }
+
   .btn-primary {
-    @apply btn bg-accent-700 text-white shadow-sm hover:bg-accent-800 hover:shadow-md;
+    @apply btn text-white;
+    background: theme('colors.accent.600');
   }
+  .btn-primary:hover:not(:disabled) { background: theme('colors.accent.700'); }
+  .dark .btn-primary { background: theme('colors.accent.500'); }
+  .dark .btn-primary:hover:not(:disabled) { background: theme('colors.accent.400'); }
+
+  /* Secondary is a neutral fill, so it recedes behind the primary action without a border. */
   .btn-secondary {
-    @apply btn border border-ink-300 bg-white text-ink-700 hover:bg-ink-100;
+    @apply btn;
+    background: var(--fill-tertiary);
+    color: rgb(var(--label));
   }
-  .dark .btn-secondary {
-    @apply border-ink-700 bg-ink-900 text-ink-200 hover:bg-ink-800;
-  }
+  .btn-secondary:hover:not(:disabled) { background: var(--fill-secondary); }
+
+  /* Tertiary: accent-coloured text, the way a link-style action looks throughout iOS and macOS. */
   .btn-ghost {
-    @apply btn text-ink-600 hover:bg-ink-100;
+    @apply btn font-normal;
+    color: theme('colors.accent.600');
+    background: transparent;
   }
-  .dark .btn-ghost {
-    @apply text-ink-300 hover:bg-ink-800;
-  }
+  .btn-ghost:hover:not(:disabled) { background: var(--fill-quaternary); }
+  .dark .btn-ghost { color: theme('colors.accent.500'); }
+
   .btn-danger {
-    @apply btn border border-negative-200 text-negative-700 hover:bg-negative-50;
+    @apply btn;
+    color: theme('colors.negative.600');
+    background: transparent;
   }
+  .btn-danger:hover:not(:disabled) { background: theme('colors.negative.50'); }
+  .dark .btn-danger { color: theme('colors.negative.400'); }
+  .dark .btn-danger:hover:not(:disabled) { background: rgba(255, 69, 58, 0.15); }
 
+  /*
+   * A text field is a recessed fill, not an outlined box. On focus it gains the accent ring rather
+   * than changing its border colour, because there is no border to change.
+   */
   .input {
-    @apply w-full rounded-md border border-ink-300 bg-white px-2.5 py-1.5 text-[12.5px] text-ink-900
-           placeholder:text-ink-400 focus:border-accent-400 focus:outline-none focus:ring-1 focus:ring-accent-400;
+    @apply w-full rounded-lg px-2.5 py-[5px] text-callout min-h-[28px];
+    background: var(--fill-quaternary);
+    color: rgb(var(--label));
+    border: none;
+    box-shadow: inset 0 0 0 0.5px var(--separator);
+    transition: box-shadow 150ms cubic-bezier(0.25, 0.1, 0.25, 1), background-color 150ms linear;
   }
-  .dark .input {
-    @apply border-ink-700 bg-ink-900 text-ink-100 placeholder:text-ink-500;
+  .input::placeholder { color: var(--label-tertiary); }
+  .input:focus {
+    @apply outline-none;
+    background: var(--surface);
+    box-shadow: inset 0 0 0 0.5px transparent, 0 0 0 3px rgba(0, 122, 255, 0.35);
+  }
+  .dark .input:focus { box-shadow: inset 0 0 0 0.5px transparent, 0 0 0 3px rgba(10, 132, 255, 0.4); }
+  @media (pointer: coarse) {
+    .input { @apply min-h-[44px] text-body; }
   }
 
+  select.input {
+    /* The system disclosure chevron, drawn rather than the platform default arrow. */
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238E8E93' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.625rem center;
+    padding-right: 1.75rem;
+  }
+
+  /* A grid cell is invisible until touched, so a dense sheet stays calm. */
   .cell-input {
-    @apply w-full bg-transparent px-2 py-1 text-right text-[12.5px] tnum
-           border border-transparent rounded transition-colors
-           hover:border-ink-200 focus:border-accent-400 focus:bg-accent-50/40 focus:outline-none;
+    @apply w-full bg-transparent px-2 py-1 text-right text-callout tnum rounded-md;
+    border: none;
+    color: rgb(var(--label));
+    transition: background-color 150ms linear, box-shadow 150ms linear;
   }
-  .dark .cell-input {
-    @apply hover:border-ink-700 focus:bg-accent-700/15;
-  }
-  /* The cell the keyboard is on, highlighted even when focus styling is subtle. */
+  .cell-input:hover { background: var(--fill-quaternary); }
   .cell-input:focus {
-    @apply ring-1 ring-accent-300;
+    @apply outline-none;
+    background: var(--surface);
+    box-shadow: 0 0 0 2px theme('colors.accent.600');
+  }
+  .dark .cell-input:focus { box-shadow: 0 0 0 2px theme('colors.accent.500'); }
+
+  /*
+   * Segmented control. The selected segment is a raised white thumb that slides; the track is a
+   * recessed neutral fill. This is the correct Apple control for a small set of exclusive views,
+   * and it replaces the row of pill buttons the previous design used for tabs and theme choice.
+   */
+  .segmented {
+    @apply inline-flex rounded-lg p-[2px] gap-[2px];
+    background: var(--fill-tertiary);
+  }
+  .segment {
+    @apply flex-1 rounded-md px-2.5 py-[3px] text-center text-subheadline font-medium whitespace-nowrap;
+    color: rgb(var(--label));
+    background: transparent;
+    transition: background-color 250ms cubic-bezier(0.25, 0.1, 0.25, 1),
+                box-shadow 250ms cubic-bezier(0.25, 0.1, 0.25, 1),
+                color 150ms linear;
+  }
+  .segment:hover:not([aria-selected='true']):not([aria-pressed='true']) { color: var(--label-secondary); }
+  .segment[aria-selected='true'], .segment[aria-pressed='true'] {
+    @apply shadow-segment;
+    background: var(--surface-raised);
+    color: rgb(var(--label));
+  }
+  .dark .segment[aria-selected='true'], .dark .segment[aria-pressed='true'] { background: #48484A; }
+  @media (pointer: coarse) {
+    .segment { @apply py-2 text-body; }
   }
 
+  /* A badge is a tinted fill with coloured text — never a saturated block with white text. */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-md px-1.5 py-[1px] text-footnote font-medium whitespace-nowrap;
+  }
+
+  /*
+   * A modal is a sheet: it floats on its own material above a dimmed backdrop, with the largest
+   * radius in the system.
+   */
+  .sheet {
+    @apply rounded-2xl shadow-sheet;
+    background: var(--surface);
+  }
+  .scrim {
+    background: rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  /*
+   * Material — translucent chrome. Content scrolling beneath a sidebar or toolbar stays faintly
+   * visible through it, which is what tells you the chrome is floating above the content rather
+   * than boxing it in. The saturation boost is what makes Apple's blur look like frosted glass
+   * instead of a grey wash.
+   */
+  .material {
+    background: var(--material);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+  }
+  .material-thick {
+    background: var(--material);
+    backdrop-filter: saturate(180%) blur(30px);
+    -webkit-backdrop-filter: saturate(180%) blur(30px);
+  }
+  /* Where blur is unavailable the material must stay legible, so it falls back to opaque. */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .material, .material-thick, .fin-table thead th { background: var(--surface); }
+  }
+
+  /* Sidebar row: a filled accent capsule when selected, a neutral fill on hover. */
+  .sidebar-item {
+    @apply block rounded-md px-2.5 py-[5px] text-callout;
+    color: rgb(var(--label));
+    transition: background-color 150ms linear, color 150ms linear;
+  }
+  .sidebar-item:hover { background: var(--fill-quaternary); }
+  .sidebar-item[aria-current='page'] {
+    @apply font-medium text-white;
+    background: theme('colors.accent.600');
+  }
+  .dark .sidebar-item[aria-current='page'] { background: theme('colors.accent.500'); }
+  .sidebar-item[aria-disabled='true'] {
+    color: var(--label-quaternary);
+    @apply cursor-not-allowed;
+  }
+  .sidebar-item[aria-disabled='true']:hover { background: transparent; }
+  @media (pointer: coarse) {
+    .sidebar-item { @apply py-2.5 text-body; }
+  }
+
+  /*
+   * Hero. Apple's marketing surfaces are a flat, deep, almost-black field with one accent — never
+   * a multi-stop rainbow gradient.
+   */
   .hero-glow {
-    @apply relative overflow-hidden border-0 text-white shadow-raised;
-    background: linear-gradient(120deg, #102a56 0%, #1d5796 58%, #087f78 100%);
+    @apply relative overflow-hidden rounded-3xl text-white;
+    background: linear-gradient(180deg, #1C1C1E 0%, #000000 100%);
   }
   .hero-glow::after {
     content: '';
     position: absolute;
-    width: 18rem;
-    height: 18rem;
-    right: -5rem;
-    top: -8rem;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.12);
-    box-shadow: -8rem 11rem 0 2rem rgba(18, 183, 106, 0.12);
+    inset: 0;
+    /* One soft systemBlue bloom, at the low opacity Apple uses on dark marketing surfaces. */
+    background: radial-gradient(120% 90% at 82% -20%, rgba(10, 132, 255, 0.30), transparent 62%);
+    pointer-events: none;
   }
-  .hero-glow > * {
-    position: relative;
-    z-index: 1;
-  }
-  .feature-card {
-    @apply surface relative overflow-hidden;
-  }
-  .feature-card::before {
-    content: '';
-    @apply absolute inset-x-0 top-0 h-1 bg-accent-500;
-  }
-  .feature-card:nth-child(2)::before { @apply bg-positive-500; }
-  .feature-card:nth-child(3)::before { @apply bg-caution-500; }
+  .hero-glow > * { position: relative; z-index: 1; }
 
-  /* Gives plots a quiet inset surface so the data, not the surrounding card, owns the visual focus. */
-  .chart-frame {
-    @apply rounded-lg px-1 py-1;
-    background: linear-gradient(180deg, rgba(43, 100, 173, 0.035), transparent 72%);
-  }
-  .dark .chart-frame {
-    background: linear-gradient(180deg, rgba(57, 135, 229, 0.08), transparent 72%);
-  }
+  /* Feature tiles carry no coloured top rule; the icon and the heading do that work. */
+  .feature-card { @apply surface relative overflow-hidden; }
+
+  /* A plot sits directly on the card. Nothing frames the data. */
+  .chart-frame { @apply rounded-lg; }
 }

@@ -62,7 +62,7 @@ export default function Insights() {
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {executiveSummary.sections.map((section) => (
-            <div key={section.key} className="rounded border border-ink-200 px-3 py-2 dark:border-ink-800">
+            <div key={section.key} className="rounded-xl bg-ink-500/[0.06] px-3 py-2 dark:bg-ink-400/[0.08]">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[12.5px] font-semibold text-ink-900 dark:text-ink-100">{section.label}</p>
                 <Badge tone={SENTIMENT_TONE[section.sentiment]}>{section.sentiment}</Badge>

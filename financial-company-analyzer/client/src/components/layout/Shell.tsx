@@ -43,7 +43,8 @@ function NavItem({ to, label, disabled, dirty }: { to: string; label: string; di
   if (disabled) {
     return (
       <span
-        className="block cursor-not-allowed rounded px-2.5 py-1.5 text-[12.5px] text-ink-400 dark:text-ink-600"
+        className="sidebar-item"
+        aria-disabled="true"
         title="Open or create a company analysis to use this section."
       >
         {label}
@@ -59,13 +60,9 @@ function NavItem({ to, label, disabled, dirty }: { to: string; label: string; di
           event.preventDefault();
         }
       }}
-      className={({ isActive }) =>
-        `block rounded px-2.5 py-1.5 text-[12.5px] transition-colors ${
-          isActive
-            ? 'bg-accent-700 font-medium text-white'
-            : 'text-ink-600 hover:bg-ink-100 dark:text-ink-300 dark:hover:bg-ink-800'
-        }`
-      }
+      // The selected style is driven by aria-current, so the accessible state and the visible
+      // state cannot drift apart.
+      className="sidebar-item"
     >
       {label}
     </NavLink>
@@ -82,17 +79,22 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-full min-h-screen flex-col lg:flex-row">
       {/* Sidebar */}
+      {/*
+        The sidebar is a material, not a panel: content scrolling in the main column stays faintly
+        visible through it, which is what reads as chrome floating above content rather than a box
+        beside it. A single hairline marks where it ends.
+      */}
       <aside
-        className={`${mobileOpen ? 'block' : 'hidden'} w-full shrink-0 border-b border-ink-200 bg-white/95 lg:block lg:w-60 lg:border-b-0 lg:border-r dark:border-ink-800 dark:bg-ink-900`}
+        className={`${mobileOpen ? 'block' : 'hidden'} material w-full shrink-0 hairline lg:sticky lg:top-0 lg:block lg:h-screen lg:w-[15rem] lg:border-b-0 lg:border-r-[0.5px] lg:border-r-[color:var(--separator)]`}
       >
         <div className="flex h-full flex-col">
           <button
             type="button"
             onClick={() => { navigate('/'); setMobileOpen(false); }}
-            className="group flex items-center gap-2 px-4 py-4 text-left"
+            className="flex items-center gap-2.5 px-4 py-4 text-left"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-accent-500 to-positive-500 text-[11px] font-bold text-white shadow-sm transition-transform group-hover:rotate-6">FA</span>
-            <span className="text-[13px] font-semibold leading-tight text-ink-900 dark:text-ink-50">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-600 text-[10px] font-semibold text-white dark:bg-accent-600/[0.08]0">FA</span>
+            <span className="text-headline font-semibold leading-tight">
               Financial<br />Company Analyzer
             </span>
           </button>
@@ -100,7 +102,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <nav className="flex-1 space-y-4 overflow-y-auto px-2.5 pb-4" aria-label="Sections">
             {NAV_GROUPS.map((group) => (
               <div key={group.label}>
-                <p className="label-caps px-2.5 pb-1">{group.label}</p>
+                <p className="group-header px-2.5 pb-1">{group.label}</p>
                 <div className="space-y-0.5" onClick={() => setMobileOpen(false)}>
                   {group.items.map((item) => (
                     <NavItem key={item.to} to={item.to} label={item.label} dirty={dirty} disabled={Boolean(item.needsCompany) && !hasCompany} />
@@ -110,16 +112,14 @@ export function Shell({ children }: { children: ReactNode }) {
             ))}
           </nav>
 
-          <div className="border-t border-ink-200 px-3 py-2.5 dark:border-ink-800">
-            <div className="mb-2 flex items-center gap-1 rounded-lg bg-ink-50 p-1 dark:bg-ink-950" role="group" aria-label="Colour theme">
+          <div className="hairline-t px-3 py-3">
+            <div className="segmented mb-2 w-full" role="group" aria-label="Appearance">
               {(['light', 'dark', 'system'] as const).map((option) => (
                 <button
                   key={option}
                   type="button"
                   onClick={() => setTheme(option)}
-                  className={`flex-1 rounded px-1.5 py-1 text-2xs capitalize transition-colors ${
-                    theme === option ? 'bg-accent-700 text-white' : 'text-ink-500 hover:bg-ink-100 dark:text-ink-400 dark:hover:bg-ink-800'
-                  }`}
+                  className="segment capitalize"
                   aria-pressed={theme === option}
                 >
                   {option}
@@ -127,7 +127,7 @@ export function Shell({ children }: { children: ReactNode }) {
               ))}
             </div>
             {meta && (
-              <p className="text-2xs leading-snug text-ink-400 dark:text-ink-500">
+              <p className="text-caption-2 leading-snug text-ink-500 dark:text-ink-500">
                 Storage: {meta.config.storage === 'mongodb' ? 'MongoDB' : 'in-memory (not persisted)'}
                 <br />
                 Narrative: {meta.config.llmEnabled ? 'LLM enabled' : 'deterministic templates'}
@@ -139,8 +139,8 @@ export function Shell({ children }: { children: ReactNode }) {
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 border-b border-ink-200 bg-white/90 backdrop-blur dark:border-ink-800 dark:bg-ink-900/90">
-          <div className="flex items-center gap-2 px-3 py-2 lg:px-4 lg:py-2.5">
+        <header className="material hairline sticky top-0 z-30">
+          <div className="flex items-center gap-2 px-4 py-2.5 lg:px-6">
             <button
               type="button"
               className="btn-secondary shrink-0 lg:hidden"
@@ -154,11 +154,11 @@ export function Shell({ children }: { children: ReactNode }) {
             {current ? (
               <div className="flex min-w-0 flex-1 items-center gap-2">
                 <div className="min-w-0">
-                  <p className="truncate text-[13.5px] font-semibold leading-tight text-ink-900 dark:text-ink-50">
+                  <p className="truncate text-headline font-semibold leading-tight">
                     {current.company.name}
                   </p>
                   {/* The strap line is context the page header repeats, so it is desktop-only. */}
-                  <p className="hidden truncate text-2xs text-ink-500 dark:text-ink-400 lg:block">
+                  <p className="hidden truncate text-footnote text-ink-500 dark:text-ink-400 lg:block">
                     {meta?.industries.find((i) => i.key === current.company.industry)?.label ?? current.company.industry}
                     {' · '}{unitsLabel(current.company.currency, current.company.units)}
                     {analysis?.latestPeriod ? ` · Latest ${analysis.latestPeriod}` : ' · No periods entered'}
@@ -170,7 +170,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 {dirty && <Badge tone="accent" className="shrink-0">Unsaved</Badge>}
               </div>
             ) : (
-              <p className="flex-1 text-[12.5px] text-ink-500 dark:text-ink-400">No analysis open</p>
+              <p className="flex-1 text-callout text-ink-500 dark:text-ink-400">No analysis open</p>
             )}
 
             <div className="flex shrink-0 items-center gap-1.5">
@@ -205,9 +205,9 @@ export function Shell({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <main className="flex-1 px-4 py-5 lg:px-8 lg:py-7">{children}</main>
+        <main className="flex-1 px-4 py-5 lg:px-6 lg:py-7">{children}</main>
 
-        <footer className="border-t border-ink-200 px-4 py-2.5 text-2xs text-ink-400 dark:border-ink-800 dark:text-ink-500 lg:px-6">
+        <footer className="hairline-t px-4 py-3 text-caption-2 leading-relaxed text-ink-500 lg:px-6">
           All metrics are calculated deterministically from the data you entered. Figures shown as “n/a” could not be calculated and are not zero.
           {analysis && ` Engine version ${analysis.engineVersion}.`}
         </footer>

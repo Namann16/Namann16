@@ -95,7 +95,7 @@ export default function Report() {
 
       <Card title="Report preview" description="What the executive summary section of the report will contain.">
         {current.company.isSample && (
-          <div className="mb-3 rounded border-l-4 border-caution-500 bg-caution-50 px-3 py-2 text-[12.5px] dark:bg-caution-700/15">
+          <div className="mb-3 rounded-xl border-l-[3px] border-caution-500 bg-caution-500/[0.10] px-3 py-2 text-callout dark:bg-caution-400/[0.14]">
             <strong>Fictional sample data.</strong> Apex Consumer Products Ltd. is not a real company. The exported report carries
             the same notice.
           </div>
@@ -109,7 +109,7 @@ export default function Report() {
             const latest = item.series?.latest;
             const available = latest?.status === 'ok' && latest.value !== null;
             return (
-              <div key={item.label} className="rounded border border-ink-200 px-2.5 py-1.5 dark:border-ink-800">
+              <div key={item.label} className="rounded-lg bg-ink-500/[0.06] px-2.5 py-1.5 dark:bg-ink-400/[0.08]">
                 <p className="label-caps truncate">{item.label}</p>
                 <p className={`tnum text-base font-semibold ${available ? '' : 'text-ink-400'}`}>
                   {available

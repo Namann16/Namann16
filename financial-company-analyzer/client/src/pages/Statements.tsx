@@ -126,7 +126,7 @@ export default function Statements() {
                   aria-pressed={view === option.key}
                   className={`rounded border px-2 py-0.5 text-2xs transition-colors ${
                     view === option.key
-                      ? 'border-accent-600 bg-accent-50 font-semibold text-accent-700 dark:bg-accent-700/20 dark:text-accent-100'
+                      ? 'border-accent-600 bg-accent-600/[0.08] font-semibold text-accent-700 dark:bg-accent-700/20 dark:text-accent-100'
                       : 'border-ink-300 text-ink-600 hover:bg-ink-100 dark:border-ink-700 dark:text-ink-300 dark:hover:bg-ink-800'
                   }`}
                 >

@@ -83,7 +83,7 @@ export function ScenarioPanel({
       actions={result ? <button type="button" className="btn-secondary" onClick={() => setResult(null)}>Clear result</button> : undefined}
     >
       <div className="space-y-3">
-        <div className="rounded-lg border border-caution-200 bg-caution-50/70 px-3 py-2 text-[12px] leading-relaxed text-caution-800 dark:border-caution-700/40 dark:bg-caution-700/10 dark:text-caution-100">
+        <div className="rounded-xl bg-caution-500/[0.12] px-3 py-2 text-subheadline leading-relaxed text-caution-600 dark:bg-caution-400/[0.14] dark:text-caution-300">
           <strong>Held-constant assumption:</strong> every line item you do not adjust remains
           unchanged. For example, increasing revenue while leaving COGS, operating expenses, and
           tax unchanged implies those costs do not scale with revenue. Adjust the related cost
@@ -137,7 +137,7 @@ export function ScenarioPanel({
         {error && <p className="text-[12px] text-negative-600">{error}</p>}
 
         {result && (
-          <div className="border-t border-ink-200 pt-3 dark:border-ink-800">
+          <div className="hairline-t pt-3">
             <div className="grid gap-2 sm:grid-cols-3">
               <div className="surface px-3 py-2">
                 <p className="label-caps">Health score change</p>
