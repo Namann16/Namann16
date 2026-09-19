@@ -12,7 +12,7 @@ function ScoreBar({ score }: { score: number | null }) {
   if (score === null) {
     return <div className="h-1.5 w-full rounded-full bg-ink-200 dark:bg-ink-800" aria-hidden="true" />;
   }
-  const colour = score >= 72 ? 'bg-positive-500' : score >= 58 ? 'bg-accent-500' : score >= 44 ? 'bg-caution-500' : 'bg-negative-500';
+  const colour = score >= 72 ? 'bg-positive-500' : score >= 58 ? 'bg-accent-600/[0.08]0' : score >= 44 ? 'bg-caution-500' : 'bg-negative-500';
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-200 dark:bg-ink-800">
       <div className={`h-full rounded-full ${colour}`} style={{ width: `${score}%` }} />
@@ -40,7 +40,7 @@ export default function FinancialHealth() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="stagger space-y-5">
       <PageHeader
         title="Financial Health"
         description="Each pillar is scored from named checks that map a metric onto a configurable band. Every contributing factor is shown, so no score is a black box, and every threshold can be changed in Settings."

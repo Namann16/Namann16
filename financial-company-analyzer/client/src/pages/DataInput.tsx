@@ -2,9 +2,10 @@ import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { LineItemDef, Num, StatementKey } from '@fca/core';
 import { useWorkspace } from '../state/WorkspaceContext';
+import { BusinessContextPanel } from '../components/analysis/BusinessContextPanel';
 import { api, ApiError, type CommitResponse, type ParseResponse } from '../api/client';
 import { Badge, Banner, Card, EmptyState, Field, Modal, PageHeader, SourceDot, Spinner } from '../components/ui/primitives';
-import { fmtCtx, formatCurrency } from '../lib/display';
+import { fmtCtx, formatCurrency, unitsLabel } from '../lib/display';
 
 /** Parse a typed cell. Empty means "not available" and is stored as an absent value, never zero. */
 function parseInput(text: string): { value: Num; error: string | null } {
@@ -34,7 +35,7 @@ function nextPeriodLabel(existing: string[]): string {
 }
 
 export default function DataInput() {
-  const { current, analysis, meta, setPeriodsLocal, savePeriods, dirty, loading } = useWorkspace();
+  const { current, analysis, meta, setPeriodsLocal, savePeriods, updateProfile, dirty, loading } = useWorkspace();
   const [statement, setStatement] = useState<StatementKey>('income');
   const [cellErrors, setCellErrors] = useState<Record<string, string>>({});
   const [pasteResult, setPasteResult] = useState<{ filled: number; failures: string[] } | null>(null);
@@ -386,7 +387,7 @@ export default function DataInput() {
                 <span className="flex items-center gap-1"><SourceDot source="entered" /> entered</span>
                 <span className="flex items-center gap-1"><SourceDot source="calculated" /> calculated</span>
                 <span className="hidden sm:inline">
-                  Arrow keys move · <kbd className="rounded border border-ink-300 px-1 dark:border-ink-600">Enter</kbd> next row · paste a column from Excel
+                  Arrow keys move · <kbd className="rounded bg-ink-500/[0.12] px-1 font-sans text-caption-2 dark:bg-ink-400/[0.16]">Enter</kbd> next row · paste a column from Excel
                 </span>
                 <button type="button" className="btn-secondary" onClick={addPeriod}>Add year</button>
               </div>
@@ -401,7 +402,7 @@ export default function DataInput() {
                       <th key={period.label} style={{ minWidth: 130 }}>
                         <div className="flex flex-col items-end gap-0.5">
                           <input
-                            className="w-24 rounded border border-transparent bg-transparent px-1 py-0.5 text-right text-2xs font-semibold uppercase tracking-wider hover:border-ink-300 focus:border-accent-400 focus:outline-none"
+                            className="w-24 rounded border border-transparent bg-transparent px-1 py-0.5 text-right text-footnote hover:border-ink-300 focus:border-accent-400 focus:outline-none"
                             defaultValue={period.label}
                             onBlur={(e) => renamePeriod(period.label, e.target.value)}
                             aria-label={`Rename ${period.label}`}
@@ -482,6 +483,15 @@ export default function DataInput() {
             </div>
           </Card>
 
+          <BusinessContextPanel
+            periods={current.periods}
+            businessContext={current.businessContext}
+            unitsLabel={unitsLabel(current.company.units)}
+            busy={loading}
+            onSaveContext={(context) => updateProfile({ businessContext: context })}
+            onSavePeriods={(next) => savePeriods(next)}
+          />
+
           {analysis && <DataQualityPanel analysis={analysis} />}
         </>
       )}
@@ -498,7 +508,7 @@ export default function DataInput() {
                 { label: 'Need confirmation', value: unresolved },
                 { label: 'Warnings', value: importState.summary.warnings },
               ].map((stat) => (
-                <div key={stat.label} className="rounded border border-ink-200 px-2.5 py-1.5 dark:border-ink-800">
+                <div key={stat.label} className="rounded-lg bg-ink-500/[0.06] px-2.5 py-1.5 dark:bg-ink-400/[0.08]">
                   <p className="label-caps">{stat.label}</p>
                   <p className="tnum text-base font-semibold">{stat.value}</p>
                 </div>
@@ -522,7 +532,7 @@ export default function DataInput() {
               <Field label="Periods to import" hint="Deselect any year you do not want.">
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {importState.periods.map((p) => (
-                    <label key={p.label} className="flex items-center gap-1.5 rounded border border-ink-300 px-2 py-1 text-[12px] dark:border-ink-700">
+                    <label key={p.label} className="flex items-center gap-1.5 rounded bg-ink-500/[0.06] px-2 py-1 text-subheadline dark:bg-ink-400/[0.08]">
                       <input
                         type="checkbox"
                         checked={importPeriods.includes(p.label)}
@@ -544,7 +554,7 @@ export default function DataInput() {
               </Field>
             </div>
 
-            <div className="max-h-96 overflow-auto rounded border border-ink-200 dark:border-ink-800">
+            <div className="max-h-96 overflow-auto rounded bg-ink-500/[0.06] dark:bg-ink-400/[0.08]">
               <table className="fin-table">
                 <thead>
                   <tr>
@@ -609,7 +619,7 @@ export default function DataInput() {
               </table>
             </div>
 
-            <div className="flex items-center justify-between gap-2 border-t border-ink-200 pt-3 dark:border-ink-800">
+            <div className="flex items-center justify-between gap-2 hairline-t pt-3">
               <p className="text-2xs text-ink-500 dark:text-ink-400">
                 Detected company: {importState.detectedCompany.name ?? 'not found in the file'}
                 {importState.detectedCompany.units ? ` · units ${importState.detectedCompany.units}` : ''}

@@ -55,6 +55,24 @@ export interface MetricValue {
   polarity?: MetricPolarity;
   denominatorBasis?: DenominatorBasis;
   saturationThreshold?: number;
+  /**
+   * Other defensible definitions of the same metric, present only when one differs from the
+   * reported figure by more than the configured tolerance (specification Part B, rule 1).
+   * Silently picking one definition is how a 9.6% ROCE ends up printed beside a 24% ROE with
+   * nothing to explain the gap.
+   */
+  alternates?: MetricAlternate[];
+}
+
+/** One alternative definition of a metric, shown beside the reported figure when they diverge. */
+export interface MetricAlternate {
+  /** What this basis is called, e.g. "Equity + debt basis". */
+  label: string;
+  value: Num;
+  /** The resolved formula for THIS basis, never a generic string. */
+  formula: string;
+  /** How far it sits from the reported figure, in percent of the reported figure. */
+  divergencePercent: Num;
 }
 
 /** A metric tracked across all periods, with the derived change and trend. */
@@ -193,11 +211,25 @@ export interface MetricConfig {
     denominator?: 'assets_less_current_liabilities' | 'equity_plus_debt' | 'equity_plus_debt_less_surplus_cash';
     excludeCustomerAdvances?: boolean;
   };
-  roic?: { surplusCashTreatment?: 'cash_only' | 'cash_and_liquid_investments'; nopatBasis?: 'effective_tax_rate' | 'statutory_rate' };
+  roic?: {
+    surplusCashTreatment?: 'cash_only' | 'cash_and_liquid_investments';
+    nopatBasis?: 'effective_tax_rate' | 'statutory_rate';
+    /**
+     * Required when nopatBasis is 'statutory_rate'. There is no universal statutory rate, so the
+     * engine will not assume one: without this value it falls back to the effective rate and says
+     * so on the metric rather than inventing a jurisdiction.
+     */
+    statutoryRatePercent?: number;
+  };
   freeCashFlow?: { capexBasis?: 'ppe_only' | 'ppe_plus_intangibles' | 'total_investing_capex' };
   workingCapital?: { basis?: 'total_current' | 'operating_only' };
   receivables?: { dsoBasis?: 'trade_only' | 'trade_plus_unbilled' | 'both' };
   inventory?: { dioDenominator?: 'cogs' | 'total_operating_cost' | 'revenue' };
+  /**
+   * How far two definitions must diverge, in percent of the reported figure, before both are
+   * shown. Specification Part B suggests 25%.
+   */
+  definitionDivergencePercent?: number;
 }
 
 export interface BusinessContext {
@@ -270,6 +302,36 @@ export interface Flag {
   evidence: Evidence;
   /** Threshold(s) that triggered the rule, so the user can see why and reconfigure. */
   thresholdUsed?: Record<string, number>;
+  /**
+   * The span of periods the claim is drawn from, derived from the evidence. Specification G2:
+   * a directional claim without its window is not checkable, and two findings measured over
+   * different windows can contradict each other while both being true.
+   */
+  window?: FindingWindow;
+}
+
+/** The span of periods a finding's evidence covers. */
+export interface FindingWindow {
+  from: string;
+  to: string;
+  /** Number of distinct periods cited. 1 means the claim rests on a single period. */
+  periods: number;
+}
+
+/**
+ * Two findings of opposite sentiment about the same measure. Specification G2: both may be
+ * correct over their own windows, so the contradiction is reported rather than resolved — the
+ * engine does not silently drop one of them.
+ */
+export interface NarrativeContradiction {
+  measure: string;
+  detail: string;
+  findings: {
+    id: string;
+    title: string;
+    sentiment: Sentiment;
+    window?: FindingWindow;
+  }[];
 }
 
 export interface Insight {
@@ -291,6 +353,13 @@ export interface HealthFactor {
   /** Points contributed to the pillar score (can be negative). */
   points: number;
   evidence?: Evidence;
+  /**
+   * How an anomaly on this metric changed the way the check was scored. `explained` means the
+   * generic band did not apply and the check was set aside; `unexplained` means it was penalised.
+   */
+  anomalyStatus?: 'explained' | 'unexplained';
+  /** The explanation that accounted for the anomaly, when one passed its test. */
+  explanation?: string;
 }
 
 export interface HealthPillar {
@@ -302,6 +371,11 @@ export interface HealthPillar {
   weight: number;
   factors: HealthFactor[];
   coverage: number; // 0-1, proportion of the pillar's checks that had data
+  /**
+   * Checks whose generic band was set aside because an anomaly on that metric was explained by
+   * a tested structural cause. They count as partial coverage rather than scoring near zero.
+   */
+  explainedChecks?: number;
 }
 
 export interface HealthScore {
@@ -427,6 +501,8 @@ export interface AnalysisResult {
   executiveSummary: ExecutiveSummary;
   dataQuality: DataQualityReport;
   anomalies: Anomaly[];
+  /** Opposite-sentiment findings about the same measure, with the window each was drawn from. */
+  contradictions: NarrativeContradiction[];
   peerComparison: PeerComparisonRow[];
   thresholds: ThresholdConfig;
   generatedAt: string;

@@ -20,6 +20,7 @@ export * from './engine/peers.js';
 export * from './engine/analyze.js';
 export * from './engine/scenario.js';
 export * from './engine/anomalies.js';
+export * from './engine/narrative.js';
 
 export * from './excel/parseValue.js';
 export * from './excel/mapping.js';

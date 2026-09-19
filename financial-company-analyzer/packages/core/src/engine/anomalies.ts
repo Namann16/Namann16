@@ -1,14 +1,67 @@
-import type { Anomaly, CompanyDataset, ExplanationResult, FinancialPeriod, MetricSeries } from '../types.js';
+import type { Anomaly, CompanyDataset, ExplanationResult, FinancialPeriod, MetricSeries, ThresholdConfig } from '../types.js';
 import { isNum } from '../utils/number.js';
+import { detectBasisBreaks, type BasisBreak } from './dataQuality.js';
+import { genericBandFor } from './health.js';
 import { val } from './normalize.js';
 
 type Band = [number, number];
 
-const BANDS: Record<string, Band> = {
-  dso: [0, 120], dio: [0, 365], inventoryGrowth: [-20, 20],
-  receivablesGrowth: [-20, 30], assetTurnover: [0.2, 5],
-  roa: [-20, 40], roce: [-20, 50],
+/** Which side of the band is the unfavourable one for a given metric. */
+type BadSide = 'below' | 'above' | 'both';
+
+interface BandSpec {
+  band: Band;
+  badSide: BadSide;
+}
+
+/**
+ * Generic bands for metrics that no pillar check scores on a level. Metrics that ARE scored take
+ * their band from the scoring configuration instead (see `genericBandFor`), so a value cannot be
+ * marked normal here while being scored at the floor of its band there.
+ */
+const SUPPLEMENTARY_BANDS: Record<string, BandSpec> = {
+  dso: { band: [0, 120], badSide: 'above' },
+  dio: { band: [0, 365], badSide: 'above' },
+  // A build-up is the concern the reference case turns on, but an abrupt collapse in either line
+  // is equally worth an explanation, so neither direction is assumed benign.
+  inventoryGrowth: { band: [-20, 20], badSide: 'both' },
+  receivablesGrowth: { band: [-20, 30], badSide: 'both' },
 };
+
+/** Metrics whose band comes from the scoring configuration rather than the table above. */
+const SCORED_METRICS = ['assetTurnover', 'roa', 'roce', 'roe', 'roic', 'currentRatio', 'interestCoverage'];
+
+/** Every metric the detector looks at, with the band to judge it against. */
+function bandsFor(thresholds: ThresholdConfig): Record<string, BandSpec> {
+  const bands: Record<string, BandSpec> = { ...SUPPLEMENTARY_BANDS };
+  for (const key of SCORED_METRICS) {
+    const scored = genericBandFor(key, thresholds);
+    // A scoring band runs from weak to strong, so for a higher-is-better metric the unfavourable
+    // side is below the band and for a lower-is-better metric it is above it.
+    if (scored) bands[key] = { band: scored.band, badSide: scored.lowerIsBetter ? 'above' : 'below' };
+  }
+  return bands;
+}
+
+/**
+ * How far outside its band a value sits, in band-widths, and whether that warrants an anomaly.
+ *
+ * Being outside the band on the favourable side is usually just good performance: an ROE of 24%
+ * against a band topping out at 20% is not an anomaly, and reporting it as one — then escalating
+ * it for having no explanation — is exactly the kind of confident nonsense this engine exists to
+ * avoid. The favourable side only counts once the value clears the band by more than a full
+ * band-width, which is the "very high ROCE or ROE" case explanation E10 is written for.
+ */
+function deviationOf(value: number, spec: BandSpec): number | null {
+  const [low, high] = spec.band;
+  if (value >= low && value <= high) return null;
+  const width = Math.max(high - low, 1);
+  const outside = value < low ? (low - value) / width : (value - high) / width;
+  const onBadSide = spec.badSide === 'both'
+    || (spec.badSide === 'below' ? value < low : value > high);
+  if (onBadSide) return outside;
+  return outside > 1 ? outside : null;
+}
 
 function result(
   id: string, label: string, passed: boolean, facts: string[], missing: string[],
@@ -21,7 +74,27 @@ function result(
   };
 }
 
-function candidates(dataset: CompanyDataset, period: FinancialPeriod, key: string): ExplanationResult[] {
+/**
+ * Which raw line items each banded metric is computed from. Explanation E8 needs this: a basis
+ * break only bears on an anomaly when the line that re-based is one the metric actually uses.
+ * Matching on MetricValue.inputs is not viable — those keys are readable names, not canonical ones.
+ */
+const METRIC_INPUTS: Record<string, string[]> = {
+  dso: ['accountsReceivable', 'revenue'],
+  dio: ['inventory', 'cogs'],
+  inventoryGrowth: ['inventory'],
+  receivablesGrowth: ['accountsReceivable'],
+  assetTurnover: ['revenue', 'totalAssets'],
+  roa: ['netIncome', 'totalAssets'],
+  roce: ['ebit', 'otherIncome', 'totalEquity'],
+};
+
+function candidates(
+  dataset: CompanyDataset,
+  period: FinancialPeriod,
+  key: string,
+  basisBreaks: BasisBreak[] = [],
+): ExplanationResult[] {
   const context = dataset.businessContext?.periods?.[period.label];
   const customerAdvances = (val(period, 'customerAdvancesCurrent') ?? 0) + (val(period, 'customerAdvancesNonCurrent') ?? 0);
   const inventory = val(period, 'inventory');
@@ -70,11 +143,16 @@ function candidates(dataset: CompanyDataset, period: FinancialPeriod, key: strin
       ['Total equity', 'Debt', 'Surplus cash'], 'upgrade_one',
       'A negative invested-capital denominator makes a conventional ROIC/ROCE conclusion misleading.'));
   }
-  if (key === 'inventoryGrowth' || key === 'receivablesGrowth') {
-    const contextPass = context?.unusual === true;
-    facts.push(result('prior_exceptional', 'Prior period was exceptional', contextPass,
-      contextPass ? [`${period.label} is flagged unusual: ${context?.unusualReason ?? 'reason not supplied'}.`] : [],
-      ['Unusual-period flag and reason'], 'downgrade_one',
+  if (key === 'inventoryGrowth' || key === 'receivablesGrowth' || key === 'cfoToNetIncome') {
+    // E7 tests the PRIOR period, not this one: a large year-on-year deterioration against an
+    // exceptional base is an artefact of the base. The flag may sit on the period record (C4) or
+    // in the business-context sheet (C3); either is accepted.
+    const priorContext = prior ? dataset.businessContext?.periods?.[prior.label] : undefined;
+    const flagged = prior?.unusual === true || priorContext?.unusual === true;
+    const reason = prior?.unusualReason ?? priorContext?.unusualReason;
+    facts.push(result('prior_exceptional', 'Prior period was exceptional', flagged,
+      flagged ? [`${prior!.label} is flagged as not representative: ${reason ?? 'no reason was supplied'}.`] : [],
+      ['Unusual-period flag on the comparison period'], 'downgrade_one',
       'Rebase the comparison against a normal-period baseline before treating the movement as deterioration.'));
   }
   if (key === 'inventoryGrowth') {
@@ -107,27 +185,61 @@ function candidates(dataset: CompanyDataset, period: FinancialPeriod, key: strin
       ['Other income', 'Profit before tax', 'Cash and investments'], 'neutral',
       'Other income appears linked to a cash-heavy balance sheet and should be separated from operating returns.'));
   }
+  // E8. A line that re-based on its own makes the transition non-comparable, so the anomaly is
+  // real but it is an artefact of the input rather than a fact about the business. The severity
+  // is retained, not softened — the finding is redirected at the data.
+  const relevantBreaks = basisBreaks.filter(
+    (bb) => bb.period === period.label && (METRIC_INPUTS[key] ?? []).includes(bb.key),
+  );
+  facts.push(result('basis_break', 'Reporting basis changed between periods', relevantBreaks.length > 0,
+    relevantBreaks.map((bb) => `${bb.label} moved ${bb.changePct > 0 ? '+' : ''}${bb.changePct.toFixed(1)}% from ${bb.priorPeriod} while ${bb.referenceLabels.join(' and ')} did not.`),
+    ['Two comparable periods for the metric’s input lines'], 'neutral',
+    'One of this metric’s inputs re-based between periods, so the movement is not comparable and should be excluded from trend analysis until the basis is confirmed.'));
+
   return facts;
 }
 
-export function detectAnomalies(dataset: CompanyDataset, metrics: Record<string, MetricSeries>): Anomaly[] {
+export function detectAnomalies(
+  dataset: CompanyDataset,
+  metrics: Record<string, MetricSeries>,
+  thresholds: ThresholdConfig,
+): Anomaly[] {
   const output: Anomaly[] = [];
-  for (const [key, band] of Object.entries(BANDS)) {
+  const basisBreaks = detectBasisBreaks(dataset.periods);
+  for (const [key, spec] of Object.entries(bandsFor(thresholds))) {
     const series = metrics[key];
     if (!series) continue;
     for (const point of series.points) {
       if (point.status !== 'ok' || !isNum(point.value)) continue;
       const value = point.value;
-      if (value >= band[0] && value <= band[1]) continue;
-      const width = Math.max(band[1] - band[0], 1);
-      const deviation = value < band[0] ? (band[0] - value) / width : (value - band[1]) / width;
-      const candidatesFound = candidates(dataset, dataset.periods.find((p) => p.label === point.period)!, key);
-      const passed = candidatesFound.find((candidate) => candidate.evidence.passed);
+      const deviation = deviationOf(value, spec);
+      if (deviation === null) continue;
+      const band = spec.band;
+      const owner = dataset.periods.find((p) => p.label === point.period);
+      if (!owner) continue;
+      const candidatesFound = candidates(dataset, owner, key, basisBreaks);
+      const passing = candidatesFound.filter((candidate) => candidate.evidence.passed);
+      // A cause that sharpens the finding takes precedence over one that softens it: an anomaly
+      // that is both structurally normal and sitting on a re-based input is still not comparable.
+      const concerning = passing.find(
+        (candidate) => candidate.severityEffect === 'upgrade_one' || candidate.severityEffect === 'neutral',
+      );
+      const benign = passing.find(
+        (candidate) => candidate.severityEffect === 'downgrade_to_info'
+          || candidate.severityEffect === 'downgrade_one'
+          || candidate.severityEffect === 'reframe_as_positive',
+      );
+      const status = concerning ? 'explained_concerning' : benign ? 'explained_benign' : 'unexplained';
       output.push({
         metric: key, period: point.period, value, genericBand: band, deviation,
         candidates: candidatesFound,
-        status: passed ? passed.severityEffect === 'upgrade_one' ? 'explained_concerning' : 'explained_benign' : 'unexplained',
-        finalSeverity: passed ? 'info' : deviation > 1 ? 'high' : 'medium',
+        status,
+        // An anomaly nobody can account for is more serious than one with an established cause.
+        finalSeverity: status === 'explained_benign'
+          ? 'info'
+          : status === 'explained_concerning'
+            ? deviation > 1 ? 'high' : 'medium'
+            : deviation > 1 ? 'critical' : 'high',
       });
     }
   }

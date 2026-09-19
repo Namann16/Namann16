@@ -256,8 +256,12 @@ export function scoreHealth(
     const checks = spec.checks(thresholds);
     const factors: HealthFactor[] = [];
     let weightedScore = 0;
-    let usedWeight = 0;
+    // Denominator of the weighted score: only checks actually scored against a band.
+    let scoredWeight = 0;
+    // Numerator of coverage: scored checks in full, explanation-set-aside checks in part.
+    let coveredWeight = 0;
     let totalWeight = 0;
+    let explainedChecks = 0;
 
     for (const check of checks) {
       totalWeight += check.weight;
@@ -297,25 +301,63 @@ export function scoreHealth(
         score = band(point.value, check.low, check.high, check.lowerIsBetter);
       }
 
-      const unexplained = anomalies.some((anomaly) =>
+      // Post-explanation scoring. An anomaly on this metric is resolved by the explanation
+      // engine before it reaches the score, never after — a value outside its generic band for
+      // a cause that passed its test must not be scored as though the band applied.
+      const relevant = anomalies.filter((anomaly) =>
         anomaly.metric === check.metricKey &&
-        anomaly.status === 'unexplained' &&
         anomaly.period === (series.latest?.period ?? ''),
       );
+      const benign = relevant.find((anomaly) => anomaly.status === 'explained_benign');
+      const concerning = relevant.find((anomaly) => anomaly.status === 'explained_concerning');
+      const unexplained = relevant.some((anomaly) => anomaly.status === 'unexplained');
+
+      if (benign) {
+        // The generic band is the wrong yardstick here, so the check is set aside rather than
+        // scored. It counts as partial coverage: the metric was computed, but not assessable.
+        const cause = benign.candidates.find((candidate) => candidate.evidence.passed);
+        coveredWeight += check.weight * 0.5;
+        explainedChecks += 1;
+        factors.push({
+          label: check.label,
+          direction: 'neutral',
+          detail:
+            `${check.explain(observed, score)} This value sits outside the generic band, but ` +
+            `${cause ? `“${cause.label}” passed its evidence test` : 'a structural cause was established'}` +
+            ', so the band was not applied and this check was set aside rather than scored. ' +
+            'The raw value is unchanged and shown above.',
+          points: 0,
+          anomalyStatus: 'explained',
+          ...(cause ? { explanation: cause.label } : {}),
+        });
+        continue;
+      }
+
       if (unexplained) score = Math.max(0, score - 0.25);
 
       weightedScore += score * check.weight;
-      usedWeight += check.weight;
+      scoredWeight += check.weight;
+      coveredWeight += check.weight;
 
+      const concerningCause = concerning?.candidates.find((candidate) => candidate.evidence.passed);
       factors.push({
         label: check.label,
         direction: score >= 0.65 ? 'supports' : score <= 0.4 ? 'offsets' : 'neutral',
-        detail: `${check.explain(observed, score)}${unexplained ? ' An unexplained anomaly reduced this score until the input or business cause is resolved.' : ''}`,
+        detail:
+          `${check.explain(observed, score)}` +
+          (unexplained
+            ? ' An unexplained anomaly reduced this score until the input or business cause is resolved.'
+            : '') +
+          (concerningCause
+            ? ` “${concerningCause.label}” passed its evidence test and sharpens rather than softens this finding.`
+            : ''),
         points: Math.round(score * check.weight * 10) / 10,
+        ...(unexplained ? { anomalyStatus: 'unexplained' as const } : {}),
+        ...(concerningCause ? { explanation: concerningCause.label } : {}),
       });
     }
 
-    const score = usedWeight > 0 ? Math.round((weightedScore / usedWeight) * 100) : null;
+    const score = scoredWeight > 0 ? Math.round((weightedScore / scoredWeight) * 100) : null;
 
     return {
       key: spec.key,
@@ -324,7 +366,8 @@ export function scoreHealth(
       label_: labelForScore(score),
       weight: spec.weight,
       factors,
-      coverage: totalWeight > 0 ? Math.round((usedWeight / totalWeight) * 100) / 100 : 0,
+      coverage: totalWeight > 0 ? Math.round((coveredWeight / totalWeight) * 100) / 100 : 0,
+      ...(explainedChecks > 0 ? { explainedChecks } : {}),
     };
   });
 
@@ -347,8 +390,35 @@ export function scoreHealth(
     methodology:
       'Each pillar is scored from named checks, every one of which maps a metric onto a configurable band between a weak and a strong level. ' +
       'Checks with no data are reported as unrated and reduce the pillar’s coverage rather than scoring zero, so a company is never penalised for data that was not supplied. ' +
+      'Where a value falls outside its generic band and the explanation engine found a tested structural cause, the band is not applied: the check is set aside, counts as partial coverage, and the raw value is still shown. ' +
+      'Anomalies with no passing explanation are penalised instead. ' +
       'The overall score is the coverage-weighted average of the pillar scores. Every band edge is drawn from the threshold configuration and can be changed in Settings.',
   };
 }
 
 export { labelForScore };
+
+/**
+ * The band a metric is actually scored against, exposed so the anomaly engine can use the same
+ * one rather than a parallel table.
+ *
+ * Keeping two band systems is how a company ends up rated "Critical" on a metric the explanation
+ * engine considers unremarkable: the pillar scored HAL's asset turnover of 0.27x at the floor of
+ * a 0.3–1.5x band while a separate anomaly table called 0.2–5x normal, so no explanation was ever
+ * sought for the number driving the verdict. Level checks only — a trend check scores a direction,
+ * not a level, and has no band a value can sit outside of.
+ */
+export function genericBandFor(
+  metricKey: string,
+  thresholds: ThresholdConfig,
+): { band: [number, number]; lowerIsBetter: boolean } | null {
+  for (const spec of PILLARS) {
+    for (const check of spec.checks(thresholds)) {
+      if (check.metricKey !== metricKey || check.useTrend) continue;
+      const low = Math.min(check.low, check.high);
+      const high = Math.max(check.low, check.high);
+      return { band: [low, high], lowerIsBetter: Boolean(check.lowerIsBetter) };
+    }
+  }
+  return null;
+}

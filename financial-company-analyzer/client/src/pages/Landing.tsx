@@ -110,7 +110,7 @@ export default function Landing() {
     <div className="mx-auto max-w-6xl space-y-6">
       <section className="hero-glow animate-fade-up rounded-2xl px-6 py-8 sm:px-8 sm:py-10">
         <div className="max-w-2xl">
-          <p className="mb-3 text-2xs font-semibold uppercase tracking-[0.2em] text-accent-100">Decision intelligence for finance teams</p>
+          <p className="mb-3 text-footnote font-medium text-accent-300">Decision intelligence for finance teams</p>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">See the story behind the numbers.</h1>
           <p className="mt-3 max-w-xl text-[13.5px] leading-7 text-blue-100">
             Transform raw company financials into clear trends, decision-ready ratios, and evidence-backed insights.
@@ -131,7 +131,7 @@ export default function Landing() {
 
       <div className="grid gap-3 md:grid-cols-3">
         <button type="button" onClick={() => setSetupOpen(true)} className="feature-card animate-pulse-soft px-5 py-5 text-left transition-transform hover:-translate-y-0.5">
-          <span className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-accent-50 text-lg text-accent-700 dark:bg-accent-700/20">＋</span>
+          <span className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-accent-600/[0.08] text-lg text-accent-700 dark:bg-accent-700/20">＋</span>
           <p className="text-[13px] font-semibold text-ink-900 dark:text-ink-50">Create a new analysis</p>
           <p className="mt-1 text-[12.5px] leading-relaxed text-ink-600 dark:text-ink-400">
             Set up the company, then enter financial data in the spreadsheet-style grid or import it from Excel.
@@ -319,7 +319,7 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 border-t border-ink-200 pt-3 dark:border-ink-800">
+          <div className="flex justify-end gap-2 hairline-t pt-3">
             <button type="button" className="btn-secondary" onClick={() => setSetupOpen(false)} disabled={busy}>Cancel</button>
             <button type="button" className="btn-primary" onClick={() => void submit('/data')} disabled={busy}>
               {busy ? 'Creating…' : 'Create and add financial data'}

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import type { CompanyDataset, CompanyProfile, FinancialPeriod, PeerCompany, ThresholdConfig } from '@fca/core';
+import type { BusinessContext, CompanyDataset, CompanyProfile, FinancialPeriod, PeerCompany, ThresholdConfig } from '@fca/core';
 import { AnalysisSnapshotModel, CompanyModel, UserSettingsModel } from '../models/Company.js';
 import { isDatabaseConnected } from '../db/connect.js';
 
@@ -57,6 +57,9 @@ export function fromDocument(doc: any): StoredCompany {
     sharesOutstanding: doc.sharesOutstanding ?? null,
     notes: doc.notes ?? undefined,
     isSample: Boolean(doc.isSample),
+    ...(doc.metricConfig ? { metricConfig: doc.metricConfig } : {}),
+    ...(doc.sectorProfile ? { sectorProfile: doc.sectorProfile } : {}),
+    ...(doc.companyStage ? { companyStage: doc.companyStage } : {}),
   };
 
   const periods: FinancialPeriod[] = (doc.periods ?? []).map((p: any) => ({
@@ -64,6 +67,8 @@ export function fromDocument(doc: any): StoredCompany {
     endDate: p.endDate ?? null,
     order: p.order,
     isPartial: Boolean(p.isPartial),
+    ...(p.unusual ? { unusual: true } : {}),
+    ...(p.unusualReason ? { unusualReason: p.unusualReason } : {}),
     values: mapToObject<number | null>(p.values),
     sources: mapToObject<'entered' | 'calculated'>(p.sources),
   }));
@@ -80,6 +85,7 @@ export function fromDocument(doc: any): StoredCompany {
     periods,
     peers,
     thresholds: mapToObject<number>(doc.thresholds) as Partial<ThresholdConfig>,
+    ...(doc.businessContext ? { businessContext: doc.businessContext } : {}),
     createdAt: doc.createdAt?.toISOString?.() ?? new Date().toISOString(),
     updatedAt: doc.updatedAt?.toISOString?.() ?? new Date().toISOString(),
   };
@@ -135,6 +141,7 @@ export interface UpsertInput {
   periods?: FinancialPeriod[];
   peers?: PeerCompany[];
   thresholds?: Partial<ThresholdConfig>;
+  businessContext?: BusinessContext;
 }
 
 export async function createCompany(input: UpsertInput): Promise<StoredCompany> {
@@ -146,6 +153,7 @@ export async function createCompany(input: UpsertInput): Promise<StoredCompany> 
       periods: input.periods ?? [],
       peers: input.peers ?? [],
       thresholds,
+      ...(input.businessContext ? { businessContext: input.businessContext } : {}),
     });
     return fromDocument(doc.toObject());
   }
@@ -158,6 +166,7 @@ export async function createCompany(input: UpsertInput): Promise<StoredCompany> 
     periods: input.periods ?? [],
     peers: input.peers ?? [],
     thresholds,
+    ...(input.businessContext ? { businessContext: input.businessContext } : {}),
     createdAt: now,
     updatedAt: now,
   };
@@ -172,6 +181,7 @@ export async function updateCompany(id: string, input: Partial<UpsertInput>): Pr
     if (input.periods) update['periods'] = input.periods;
     if (input.peers) update['peers'] = input.peers;
     if (input.thresholds) update['thresholds'] = input.thresholds;
+    if (input.businessContext) update['businessContext'] = input.businessContext;
     delete update['id'];
 
     const doc = await CompanyModel.findByIdAndUpdate(id, update, { new: true, runValidators: true })
@@ -188,6 +198,7 @@ export async function updateCompany(id: string, input: Partial<UpsertInput>): Pr
     periods: input.periods ?? existing.periods,
     peers: input.peers ?? existing.peers,
     thresholds: input.thresholds ?? existing.thresholds,
+    businessContext: input.businessContext ?? existing.businessContext,
     updatedAt: new Date().toISOString(),
   };
   memory.set(id, updated);
@@ -214,6 +225,7 @@ export function toDataset(entry: StoredCompany): CompanyDataset {
     periods: entry.periods,
     peers: entry.peers,
     thresholds: entry.thresholds,
+    businessContext: entry.businessContext,
   };
 }
 

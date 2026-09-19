@@ -49,7 +49,7 @@ export default function GrowthTrends() {
   const selected = cagr.find((c) => c.key === evidenceKey);
 
   return (
-    <div className="space-y-5">
+    <div className="stagger space-y-5">
       <PageHeader
         title="Growth & Trends"
         description="Year-on-year growth shows the most recent move; compound growth smooths the volatility to show the underlying rate. Comparing growth at different levels of the income statement is what reveals operating leverage — or its absence."

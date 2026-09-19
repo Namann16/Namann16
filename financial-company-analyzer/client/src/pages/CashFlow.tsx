@@ -54,7 +54,7 @@ export default function CashFlow() {
   const latestFcf = fcfSeries?.latest;
 
   return (
-    <div className="space-y-5">
+    <div className="stagger space-y-5">
       <PageHeader
         title="Cash Flow Analysis"
         description="Profit is an opinion shaped by accounting policy; cash is a fact. This section tests whether reported earnings are arriving as cash, what the business is spending to sustain itself, and what is genuinely left over."
@@ -71,7 +71,7 @@ export default function CashFlow() {
 
       <Card title="Free cash flow" description="The formula, shown explicitly, with the inputs for the latest period.">
         <div className="flex flex-wrap items-center gap-6">
-          <div className="rounded-md border border-accent-200 bg-accent-50 px-4 py-3 dark:border-accent-700/40 dark:bg-accent-700/15">
+          <div className="rounded-xl bg-accent-600/[0.10] px-4 py-3 dark:bg-accent-500/[0.16]">
             <p className="font-mono text-[13px] font-semibold text-accent-800 dark:text-accent-100">
               FCF = CFO − Capital Expenditure
             </p>

@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Shell } from './components/layout/Shell';
 import { useWorkspace } from './state/WorkspaceContext';
-import { Banner, Card, EmptyState, Spinner } from './components/ui/primitives';
+import { AnalysisSkeleton, Banner, Card, EmptyState, Spinner } from './components/ui/primitives';
 import { API_BASE_URL } from './api/client';
 
 import Landing from './pages/Landing';
@@ -30,7 +30,7 @@ import Settings from './pages/Settings';
 function RequiresCompany({ children }: { children: JSX.Element }) {
   const { current, analysis, loading } = useWorkspace();
 
-  if (loading && !current) return <Spinner label="Opening analysis" />;
+  if (loading && !current) return <AnalysisSkeleton label="Opening analysis" />;
   if (!current) {
     return (
       <EmptyState
@@ -40,7 +40,8 @@ function RequiresCompany({ children }: { children: JSX.Element }) {
       />
     );
   }
-  if (!analysis) return <Spinner label="Calculating analysis" />;
+  // A shape that matches what is coming, so the layout does not jump when it arrives.
+  if (!analysis) return <AnalysisSkeleton />;
   return children;
 }
 

@@ -1,13 +1,14 @@
 import type {
   AnalysisResult,
+  BusinessContext,
   CompanyProfile,
   FinancialPeriod,
   IndustryKey,
   LineItemDef,
   MetricGroup,
   PeerCompany,
-  ThresholdConfig,
   ScenarioDiff,
+  ThresholdConfig,
 } from '@fca/core';
 
 /**
@@ -91,6 +92,8 @@ export interface StoredCompany {
   periods: FinancialPeriod[];
   peers: PeerCompany[];
   thresholds: Partial<ThresholdConfig>;
+  /** Optional business-context sheet, keyed by period label. */
+  businessContext?: BusinessContext;
   createdAt: string;
   updatedAt: string;
 }

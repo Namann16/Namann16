@@ -112,8 +112,39 @@ export const companyProfileSchema = z.object({
   isSample: z.boolean().optional(),
 });
 
+/**
+ * Specification C3: the optional business-context sheet, keyed by period label. Every field is
+ * optional — a blank sheet must leave the analysis valid — but a field that is supplied is
+ * validated, because explanation tests draw evidence from these values.
+ */
+export const businessContextSchema = z.object({
+  periods: z
+    .record(
+      z.string().trim().min(1).max(32),
+      z.object({
+        orderBook: financialValue.optional(),
+        orderInflow: financialValue.optional(),
+        revenueRecognitionBasis: z
+          .enum(['point_in_time', 'over_time_milestone', 'over_time_cost_to_cost', 'subscription'])
+          .optional(),
+        largestCustomerPct: z.number().min(0).max(100).nullable().optional(),
+        customersAboveTenPct: z.number().int().min(0).max(1000).nullable().optional(),
+        customerType: z.enum(['government', 'enterprise_b2b', 'consumer', 'mixed']).optional(),
+        employeeCount: z.number().int().min(0).nullable().optional(),
+        rdExpensed: financialValue.optional(),
+        rdCapitalised: financialValue.optional(),
+        oneOffDescription: z.string().max(500).optional(),
+        oneOffAmount: financialValue.optional(),
+        unusual: z.boolean().optional(),
+        unusualReason: z.string().max(500).optional(),
+      }),
+    )
+    .optional(),
+});
+
 export const createCompanySchema = companyProfileSchema.extend({
   periods: z.array(periodSchema).max(20, 'At most 20 periods are supported.').default([]),
+  businessContext: businessContextSchema.optional(),
   peers: z.array(peerSchema).max(20).default([]),
   thresholds: thresholdsSchema.optional(),
 });

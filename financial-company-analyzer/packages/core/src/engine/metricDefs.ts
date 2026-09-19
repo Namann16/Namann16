@@ -1,4 +1,4 @@
-import type { FinancialPeriod, IndustryKey, MetricConfig, MetricGroup, MetricUnit, Num } from '../types.js';
+import type { FinancialPeriod, IndustryKey, MetricAlternate, MetricConfig, MetricGroup, MetricUnit, Num } from '../types.js';
 import {
   add,
   average,
@@ -28,6 +28,38 @@ export interface MetricComputation {
   inputs: Record<string, Num>;
   note?: string;
   denominatorBasis?: 'average' | 'spot';
+  /**
+   * The definition actually used, when configuration can change it (specification Part B, rule 2:
+   * "always print the definition in use"). Overrides the definition's static formula string, so a
+   * reader never sees a formula that does not match the number beside it.
+   */
+  formula?: string;
+  /** Other defensible definitions, filtered to the ones that diverge (Part B, rule 1). */
+  alternates?: MetricAlternate[];
+}
+
+/** Default tolerance before two definitions of one metric are both shown. */
+export const DEFAULT_DEFINITION_DIVERGENCE_PERCENT = 25;
+
+/**
+ * Keep the alternative definitions that differ from the reported figure by more than the
+ * tolerance. Specification Part B rule 1: show both when they diverge, because silently picking
+ * one is what produced a 9.6% ROCE printed beside a 24% ROE with nothing to account for the gap.
+ */
+export function divergentAlternates(
+  reported: Num,
+  candidates: { label: string; value: Num; formula: string }[],
+  config?: MetricConfig,
+): MetricAlternate[] {
+  if (!isNum(reported) || reported === 0) return [];
+  const tolerance = config?.definitionDivergencePercent ?? DEFAULT_DEFINITION_DIVERGENCE_PERCENT;
+  return candidates
+    .filter((c) => isNum(c.value))
+    .map((c) => ({
+      ...c,
+      divergencePercent: ((c.value as number) - reported) / Math.abs(reported) * 100,
+    }))
+    .filter((c) => Math.abs(c.divergencePercent) > tolerance);
 }
 
 export interface MetricDefinition {
@@ -74,29 +106,77 @@ export function freeCashFlow(p: FinancialPeriod | undefined, config?: MetricConf
   const cfo = val(p, 'cfo');
   const ppeCapex = val(p, 'purchaseOfPPE') ?? val(p, 'capex');
   const intangibles = sumDefined([val(p, 'purchaseOfIntangibles'), val(p, 'purchaseOfIntangibleDevelopment')]) ?? 0;
-  const capex = config?.freeCashFlow?.capexBasis === 'ppe_only'
-    ? ppeCapex
-    : isNum(ppeCapex) ? ppeCapex + intangibles : null;
+  const basis = config?.freeCashFlow?.capexBasis;
+  let capex: Num;
+  if (basis === 'ppe_only') {
+    capex = ppeCapex;
+  } else if (basis === 'total_investing_capex') {
+    // Everything the investing section spent on capacity, including investments purchased.
+    const investing = sumDefined([ppeCapex, val(p, 'purchaseOfIntangibles'), val(p, 'purchaseOfIntangibleDevelopment'), val(p, 'purchaseOfInvestments')]);
+    capex = investing;
+  } else {
+    capex = isNum(ppeCapex) ? ppeCapex + intangibles : null;
+  }
   if (!isNum(cfo) || !isNum(capex)) return null;
   return cfo - Math.abs(capex);
 }
 
+export type CapexBasis = NonNullable<NonNullable<MetricConfig['freeCashFlow']>['capexBasis']>;
+
+/** Short name for a capex basis, used to label an alternative reading. */
+export function capexLabel(basis: CapexBasis | undefined): string {
+  switch (basis) {
+    case 'ppe_only': return 'PP&E capex only';
+    case 'total_investing_capex': return 'All investing capex';
+    default: return 'PP&E plus intangibles';
+  }
+}
+
+/** The resolved capex definition, for the formula shown beside free cash flow. */
+export function capexFormula(config?: MetricConfig): string {
+  switch (config?.freeCashFlow?.capexBasis) {
+    case 'ppe_only': return 'CFO − Purchase of PP&E';
+    case 'total_investing_capex': return 'CFO − (PP&E + intangibles + investments purchased)';
+    default: return 'CFO − (Purchase of PP&E + Purchase of Intangibles)';
+  }
+}
+
 /**
- * Invested capital = total equity + total debt − cash.
- * This is the operating capital base the business must earn a return on.
+ * Invested capital = total equity + total debt − surplus cash.
+ *
+ * Which cash counts as surplus is a configuration decision, and it routes through the same
+ * `surplusCash` function as net debt, enterprise value and the cash ratio so the four cannot
+ * disagree about the same balance (specification A5).
  */
-export function investedCapital(p: FinancialPeriod | undefined): Num {
+export function investedCapital(p: FinancialPeriod | undefined, config?: MetricConfig): Num {
   const equity = val(p, 'totalEquity');
   const debt = totalDebt(p);
   if (!isNum(equity) || !isNum(debt)) return null;
-  const cash = surplusCash(p) ?? 0;
+  const cash = surplusCash(p, config?.roic?.surplusCashTreatment) ?? 0;
   return equity + debt - cash;
 }
 
-/** NOPAT = EBIT × (1 − effective tax rate), with the effective rate taken from the P&L. */
-export function nopat(p: FinancialPeriod | undefined): { value: Num; taxRate: Num } {
+/**
+ * NOPAT = EBIT × (1 − tax rate).
+ *
+ * The rate is the effective rate from the P&L by default. A statutory basis is available, but
+ * only when the rate is supplied: there is no universal statutory rate, so rather than assume a
+ * jurisdiction the engine falls back to the effective rate and reports that it did.
+ */
+export function nopat(
+  p: FinancialPeriod | undefined,
+  config?: MetricConfig,
+): { value: Num; taxRate: Num; basis: 'effective' | 'statutory'; note?: string } {
   const ebit = val(p, 'ebit');
-  if (!isNum(ebit)) return { value: null, taxRate: null };
+  if (!isNum(ebit)) return { value: null, taxRate: null, basis: 'effective' };
+
+  const wantsStatutory = config?.roic?.nopatBasis === 'statutory_rate';
+  const statutory = config?.roic?.statutoryRatePercent;
+  if (wantsStatutory && isNum(statutory)) {
+    const rate = statutory / 100;
+    return { value: ebit * (1 - rate), taxRate: rate, basis: 'statutory' };
+  }
+
   const pbt = val(p, 'pbt');
   const tax = val(p, 'taxExpense');
   let rate: Num = null;
@@ -105,12 +185,42 @@ export function nopat(p: FinancialPeriod | undefined): { value: Num; taxRate: Nu
     // Guard against nonsensical effective rates from one-off tax items.
     if (rate < 0 || rate > 0.6) rate = null;
   }
-  if (rate === null) return { value: null, taxRate: null };
-  return { value: ebit * (1 - rate), taxRate: rate };
+  if (rate === null) return { value: null, taxRate: null, basis: 'effective' };
+  return {
+    value: ebit * (1 - rate),
+    taxRate: rate,
+    basis: 'effective',
+    ...(wantsStatutory
+      ? { note: 'A statutory tax basis was selected but no statutory rate was supplied, so the effective rate from the P&L was used instead.' }
+      : {}),
+  };
 }
 
-export function workingCapital(p: FinancialPeriod | undefined): Num {
+/**
+ * Working capital.
+ *
+ * The total-current basis is the accounting definition. The operating basis
+ * (receivables + inventory − payables) strips out cash, short-term debt and other items that are
+ * financing rather than operating decisions, which is what makes a working-capital cycle
+ * comparable between companies.
+ */
+export function workingCapital(p: FinancialPeriod | undefined, config?: MetricConfig): Num {
+  if (config?.workingCapital?.basis === 'operating_only') {
+    const receivables = val(p, 'accountsReceivable');
+    const inventory = val(p, 'inventory');
+    const payables = val(p, 'accountsPayable');
+    const assets = sumDefined([receivables, inventory]);
+    if (!isNum(assets)) return null;
+    return assets - (payables ?? 0);
+  }
   return subtract(val(p, 'totalCurrentAssets'), val(p, 'totalCurrentLiabilities'));
+}
+
+/** Label for the working-capital basis in use, for the resolved formula string. */
+export function workingCapitalFormula(config?: MetricConfig): string {
+  return config?.workingCapital?.basis === 'operating_only'
+    ? 'Receivables + Inventory − Payables (operating basis)'
+    : 'Total Current Assets − Total Current Liabilities';
 }
 
 /**
@@ -465,11 +575,12 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     meaning: 'Return the business earns on all operating capital employed, before financing structure. The core test of whether growth creates value.',
     higherIsBetter: true, absoluteChangeOnly: true,
     compute: (ctx) => {
-      const { value: rawNopat, taxRate } = nopat(ctx.current);
+      const cfg = ctx.metricConfig;
+      const { value: rawNopat, taxRate, basis: taxBasis, note: taxNote } = nopat(ctx.current, cfg);
       const factor = ctx.annualizeInterimMetrics ? interimFactor(ctx) : 1;
       const nopatValue = isNum(rawNopat) ? rawNopat * factor : null;
-      const curIC = investedCapital(ctx.current);
-      const prevIC = investedCapital(ctx.prior);
+      const curIC = investedCapital(ctx.current, cfg);
+      const prevIC = investedCapital(ctx.prior, cfg);
       const avgIC = isNum(curIC) && isNum(prevIC) ? average(curIC, prevIC) : curIC;
       const inputs: Record<string, Num> = {
         ebit: val(ctx.current, 'ebit'),
@@ -478,8 +589,24 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
         'invested capital (opening)': prevIC,
         'invested capital (closing)': curIC,
       };
+      const cashLabel = cfg?.roic?.surplusCashTreatment === 'cash_only' ? 'Cash' : 'Cash + Short-Term Investments';
+      const reported = toPercent(safeDivPositiveDenominator(nopatValue, avgIC));
+      // The other surplus-cash treatment, shown when it moves the answer materially.
+      const otherTreatment = cfg?.roic?.surplusCashTreatment === 'cash_only' ? 'cash_and_liquid_investments' as const : 'cash_only' as const;
+      const otherCfg: MetricConfig = { ...cfg, roic: { ...cfg?.roic, surplusCashTreatment: otherTreatment } };
+      const otherCur = investedCapital(ctx.current, otherCfg);
+      const otherPrev = investedCapital(ctx.prior, otherCfg);
+      const otherAvg = isNum(otherCur) && isNum(otherPrev) ? average(otherCur, otherPrev) : otherCur;
+      const otherLabel = otherTreatment === 'cash_only' ? 'Cash' : 'Cash + Short-Term Investments';
       return {
-        value: toPercent(safeDivPositiveDenominator(nopatValue, avgIC)),
+        value: reported,
+        formula: `Annualized NOPAT / Average Invested Capital, where NOPAT = EBIT × (1 − ${taxBasis} tax rate) and Invested Capital = Equity + Total Debt − ${cashLabel}`,
+        ...(taxNote ? { note: taxNote } : {}),
+        alternates: divergentAlternates(reported, [{
+          label: `Surplus cash as ${otherLabel.toLowerCase()}`,
+          value: toPercent(safeDivPositiveDenominator(nopatValue, otherAvg)),
+          formula: `Annualized NOPAT / (Equity + Total Debt − ${otherLabel})`,
+        }], cfg),
         inputs,
         ...(!isNum(taxRate)
           ? { note: 'An effective tax rate could not be established from pre-tax profit and tax expense, so NOPAT cannot be calculated.' }
@@ -502,9 +629,36 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
       const debt = totalDebt(ctx.current);
       const advances = sumDefined([val(ctx.current, 'customerAdvancesCurrent'), val(ctx.current, 'customerAdvancesNonCurrent')]) ?? 0;
       const config = ctx.metricConfig?.roce;
-      const numerator = config?.numerator === 'ebit_plus_other_income'
-        ? add(ebit.value, val(ctx.current, 'otherIncome'))
-        : ebit.value;
+      const otherIncome = val(ctx.current, 'otherIncome');
+      const wantsOtherIncome = config?.numerator === 'ebit_plus_other_income';
+      /*
+       * A company that reports no other income should still get a ROCE. `add` returns null when
+       * either side is missing, which suppressed the metric entirely for every such company the
+       * moment this basis was selected — a configuration choice must never delete a figure the
+       * data supports. The absent line is treated as absent rather than as zero, and the omission
+       * is disclosed on the metric instead of being silently absorbed.
+       */
+      const numerator = wantsOtherIncome ? sumDefined([ebit.value, otherIncome]) : ebit.value;
+      const numeratorLabel = wantsOtherIncome
+        ? isNum(otherIncome) ? 'Annualized (EBIT + Other Income)' : 'Annualized EBIT'
+        : 'Annualized EBIT';
+      const numeratorNote = wantsOtherIncome && !isNum(otherIncome)
+        ? 'Other income was selected for the numerator but is not reported for this period, so EBIT alone was used.'
+        : undefined;
+      const employedLabel = config?.denominator === 'equity_plus_debt'
+        ? 'Equity + debt'
+        : config?.denominator === 'equity_plus_debt_less_surplus_cash'
+          ? 'Equity + debt less surplus cash'
+          : config?.excludeCustomerAdvances
+            ? 'Excluding customer advances'
+            : 'Assets less current liabilities';
+      const denominatorFormula = config?.denominator === 'equity_plus_debt'
+        ? '(Total Equity + Total Debt)'
+        : config?.denominator === 'equity_plus_debt_less_surplus_cash'
+          ? '(Total Equity + Total Debt − Surplus Cash)'
+          : config?.excludeCustomerAdvances
+            ? '(Total Assets − Total Current Liabilities − Customer Advances)'
+            : '(Total Assets − Total Current Liabilities)';
       const employed = config?.denominator === 'equity_plus_debt'
         ? (isNum(equity) && isNum(debt) ? equity + debt : null)
         : config?.denominator === 'equity_plus_debt_less_surplus_cash'
@@ -513,9 +667,41 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
               const base = subtract(ta, tcl);
               return isNum(base) ? base - (config?.excludeCustomerAdvances ? advances : 0) : null;
             })();
+      const reported = toPercent(safeDivPositiveDenominator(numerator, employed));
+
+      // Specification Part B. Every other defensible capital-employed basis is computed, and the
+      // ones that disagree materially are carried alongside rather than discarded — the reference
+      // case's two ROCE definitions differ by 3.3x and point to opposite conclusions.
+      const assetsLessCurrent = subtract(ta, tcl);
+      const bases: { label: string; value: Num; formula: string }[] = [
+        {
+          label: 'Assets less current liabilities',
+          value: toPercent(safeDivPositiveDenominator(numerator, assetsLessCurrent)),
+          formula: `${numeratorLabel} / (Total Assets − Total Current Liabilities)`,
+        },
+        {
+          label: 'Excluding customer advances',
+          value: toPercent(safeDivPositiveDenominator(numerator, isNum(assetsLessCurrent) ? assetsLessCurrent - advances : null)),
+          formula: `${numeratorLabel} / (Total Assets − Total Current Liabilities − Customer Advances)`,
+        },
+        {
+          label: 'Equity + debt',
+          value: toPercent(safeDivPositiveDenominator(numerator, isNum(equity) && isNum(debt) ? equity + debt : null)),
+          formula: `${numeratorLabel} / (Total Equity + Total Debt)`,
+        },
+        {
+          label: 'Equity + debt less surplus cash',
+          value: toPercent(safeDivPositiveDenominator(numerator, isNum(equity) && isNum(debt) ? equity + debt - (surplusCash(ctx.current) ?? 0) : null)),
+          formula: `${numeratorLabel} / (Total Equity + Total Debt − Surplus Cash)`,
+        },
+      ].filter((basis) => basis.label !== employedLabel);
+
       return {
-        value: toPercent(safeDivPositiveDenominator(numerator, employed)),
+        value: reported,
+        formula: `${numeratorLabel} / ${denominatorFormula}`,
+        ...(numeratorNote ? { note: numeratorNote } : {}),
         inputs: { ebit: numerator, totalAssets: ta, totalCurrentLiabilities: tcl, totalEquity: equity, totalDebt: debt, customerAdvances: advances, 'capital employed': employed },
+        alternates: divergentAlternates(reported, bases, ctx.metricConfig),
       };
     },
   },
@@ -763,12 +949,35 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     higherIsBetter: false, absoluteChangeOnly: true,
     compute: (ctx) => {
       const rev = val(ctx.current, 'revenue');
-      const avg = avgBalance(ctx, 'accountsReceivable');
-      const ratio = safeDivPositiveDenominator(avg.value, rev);
       const basis = daysBasis(ctx);
+      // Specification Part B: which receivables line the collection period is measured on.
+      // 'trade_only' is the peer-comparable basis; the default total includes unbilled revenue
+      // and is not comparable without adjustment (see explanation E2).
+      const dsoBasis = ctx.metricConfig?.receivables?.dsoBasis ?? 'trade_plus_unbilled';
+      const sourceKey = dsoBasis === 'trade_only' ? 'tradeReceivables' : 'accountsReceivable';
+      const avg = avgBalance(ctx, sourceKey);
+      const ratio = safeDivPositiveDenominator(avg.value, rev);
+      const reported = isNum(ratio) ? ratio * basis.days : null;
+
+      const otherKey = sourceKey === 'tradeReceivables' ? 'accountsReceivable' : 'tradeReceivables';
+      const otherAvg = avgBalance(ctx, otherKey);
+      const otherRatio = safeDivPositiveDenominator(otherAvg.value, rev);
+      const otherLabel = otherKey === 'tradeReceivables' ? 'Trade receivables only' : 'Including unbilled revenue';
+
       return {
-        value: isNum(ratio) ? ratio * basis.days : null,
+        value: reported,
+        formula: dsoBasis === 'trade_only'
+          ? `(Average Trade Receivables / Annualized Revenue) × ${basis.days}`
+          : `(Average Accounts Receivable, including unbilled / Annualized Revenue) × ${basis.days}`,
         inputs: { revenue: rev, ...avg.inputs },
+        // 'both' always shows the second basis; otherwise only when it materially disagrees.
+        alternates: dsoBasis === 'both' || isNum(otherRatio)
+          ? divergentAlternates(reported, [{
+              label: otherLabel,
+              value: isNum(otherRatio) ? otherRatio * basis.days : null,
+              formula: `(Average ${otherKey === 'tradeReceivables' ? 'Trade Receivables' : 'Accounts Receivable'} / Annualized Revenue) × ${basis.days}`,
+            }], dsoBasis === 'both' ? { ...ctx.metricConfig, definitionDivergencePercent: 0 } : ctx.metricConfig)
+          : [],
         ...(avg.note || basis.note ? { note: [avg.note, basis.note].filter(Boolean).join(' ') } : {}),
       };
     },
@@ -796,13 +1005,33 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     meaning: 'Average number of days inventory sits before it is sold.',
     higherIsBetter: false, absoluteChangeOnly: true,
     compute: (ctx) => {
-      const cogs = val(ctx.current, 'cogs');
       const avg = avgBalance(ctx, 'inventory');
-      const ratio = safeDivPositiveDenominator(avg.value, cogs);
       const basis = daysBasis(ctx);
+      // Specification Part B. COGS is the textbook denominator, but a business that reports no
+      // COGS split, or carries most of its cost below the gross-profit line, needs another base.
+      const denominatorBasis = ctx.metricConfig?.inventory?.dioDenominator ?? 'cogs';
+      const cogs = val(ctx.current, 'cogs');
+      const totalOperatingCost = sumDefined([cogs, val(ctx.current, 'operatingExpenses')]);
+      const revenue = val(ctx.current, 'revenue');
+      const denominators: Record<string, { value: Num; label: string }> = {
+        cogs: { value: cogs, label: 'Annualized COGS' },
+        total_operating_cost: { value: totalOperatingCost, label: 'Annualized Total Operating Cost' },
+        revenue: { value: revenue, label: 'Annualized Revenue' },
+      };
+      const chosen = denominators[denominatorBasis]!;
+      const ratio = safeDivPositiveDenominator(avg.value, chosen.value);
+      const reported = isNum(ratio) ? ratio * basis.days : null;
+
       return {
-        value: isNum(ratio) ? ratio * basis.days : null,
-        inputs: { cogs, ...avg.inputs },
+        value: reported,
+        formula: `(Average Inventory / ${chosen.label}) × ${basis.days}`,
+        inputs: { [denominatorBasis === 'cogs' ? 'cogs' : chosen.label.toLowerCase()]: chosen.value, ...avg.inputs },
+        alternates: divergentAlternates(reported, Object.entries(denominators)
+          .filter(([key]) => key !== denominatorBasis)
+          .map(([, d]) => {
+            const r = safeDivPositiveDenominator(avg.value, d.value);
+            return { label: `On ${d.label.replace('Annualized ', '').toLowerCase()}`, value: isNum(r) ? r * basis.days : null, formula: `(Average Inventory / ${d.label}) × ${basis.days}` };
+          }), ctx.metricConfig),
         ...(avg.note || basis.note ? { note: [avg.note, basis.note].filter(Boolean).join(' ') } : {}),
       };
     },
@@ -851,13 +1080,30 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     key: 'workingCapital', label: 'Working Capital', group: 'workingCapital', unit: 'currency',
     formula: 'Total Current Assets − Total Current Liabilities',
     meaning: 'Net short-term capital tied up in running the business.',
-    compute: (ctx) => ({
-      value: workingCapital(ctx.current),
-      inputs: {
-        totalCurrentAssets: val(ctx.current, 'totalCurrentAssets'),
-        totalCurrentLiabilities: val(ctx.current, 'totalCurrentLiabilities'),
-      },
-    }),
+    compute: (ctx) => {
+      const cfg = ctx.metricConfig;
+      const reported = workingCapital(ctx.current, cfg);
+      const otherBasis: MetricConfig = {
+        ...cfg,
+        workingCapital: { basis: cfg?.workingCapital?.basis === 'operating_only' ? 'total_current' : 'operating_only' },
+      };
+      return {
+        value: reported,
+        formula: workingCapitalFormula(cfg),
+        inputs: {
+          totalCurrentAssets: val(ctx.current, 'totalCurrentAssets'),
+          totalCurrentLiabilities: val(ctx.current, 'totalCurrentLiabilities'),
+          accountsReceivable: val(ctx.current, 'accountsReceivable'),
+          inventory: val(ctx.current, 'inventory'),
+          accountsPayable: val(ctx.current, 'accountsPayable'),
+        },
+        alternates: divergentAlternates(reported, [{
+          label: cfg?.workingCapital?.basis === 'operating_only' ? 'Total current basis' : 'Operating basis',
+          value: workingCapital(ctx.current, otherBasis),
+          formula: workingCapitalFormula(otherBasis),
+        }], cfg),
+      };
+    },
   },
   {
     key: 'workingCapitalToRevenue', label: 'Working Capital / Revenue', group: 'workingCapital', unit: 'percent',
@@ -865,7 +1111,7 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     meaning: 'Share of revenue permanently tied up in working capital. Rising intensity consumes cash as the business grows.',
     higherIsBetter: false, absoluteChangeOnly: true,
     compute: (ctx) => {
-      const wc = workingCapital(ctx.current);
+      const wc = workingCapital(ctx.current, ctx.metricConfig);
       const rev = val(ctx.current, 'revenue');
       return { value: toPercent(safeDivPositiveDenominator(wc, rev)), inputs: { 'working capital': wc, revenue: rev } };
     },
@@ -896,10 +1142,30 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     formula: 'CFO − Capital Expenditure',
     meaning: 'Cash left after maintaining and growing the asset base. What is genuinely available to lenders and shareholders.',
     higherIsBetter: true,
-    compute: (ctx) => ({
-      value: freeCashFlow(ctx.current, ctx.metricConfig),
-      inputs: { cfo: val(ctx.current, 'cfo'), capex: val(ctx.current, 'capex') },
-    }),
+    compute: (ctx) => {
+      const cfg = ctx.metricConfig;
+      const reported = freeCashFlow(ctx.current, cfg);
+      // Understating capex overstates free cash flow, and the reference case shows how far: the
+      // omitted intangible spend overstated FCF by 11%. The other bases are carried when they
+      // materially disagree, so the gap is visible rather than a matter of which switch is set.
+      const bases: CapexBasis[] = ['ppe_only', 'ppe_plus_intangibles', 'total_investing_capex'];
+      const current = cfg?.freeCashFlow?.capexBasis ?? 'ppe_plus_intangibles';
+      return {
+        value: reported,
+        formula: capexFormula(cfg),
+        inputs: {
+          cfo: val(ctx.current, 'cfo'),
+          'purchase of PP&E': val(ctx.current, 'purchaseOfPPE') ?? val(ctx.current, 'capex'),
+          'purchase of intangibles': val(ctx.current, 'purchaseOfIntangibles'),
+        },
+        alternates: divergentAlternates(reported, bases
+          .filter((basis) => basis !== current)
+          .map((basis) => {
+            const alt: MetricConfig = { ...cfg, freeCashFlow: { capexBasis: basis } };
+            return { label: capexLabel(basis), value: freeCashFlow(ctx.current, alt), formula: capexFormula(alt) };
+          }), cfg),
+      };
+    },
   },
   {
     key: 'cfoMargin', label: 'CFO Margin', group: 'cashFlow', unit: 'percent',

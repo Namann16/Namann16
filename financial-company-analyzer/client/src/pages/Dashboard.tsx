@@ -75,7 +75,7 @@ export default function Dashboard() {
   ]);
 
   return (
-    <div className="dashboard-enter space-y-5">
+    <div className="stagger space-y-5">
       <PageHeader
         title={company.name}
         description={
@@ -131,7 +131,7 @@ export default function Dashboard() {
         />
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-positive-200 bg-positive-50/70 px-3 py-2 text-[12px] text-positive-800 dark:border-positive-700/40 dark:bg-positive-700/10 dark:text-positive-100">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-positive-500/[0.12] px-3 py-2 text-subheadline text-positive-600 dark:bg-positive-400/[0.14] dark:text-positive-400">
         <span className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-positive-500 shadow-[0_0_0_3px_rgba(18,183,106,0.14)]" aria-hidden="true" />
           {connecting ? 'Refreshing analysis connection…' : 'Analysis is live and up to date'}
@@ -174,7 +174,7 @@ export default function Dashboard() {
                 ['Free cash flow', metrics['fcf']],
                 ['Net debt / EBITDA', metrics['netDebtToEbitda']],
               ] as [string, MetricSeries | undefined][]).map(([label, series]) => (
-                <div key={label} className="flex items-center justify-between gap-3 rounded-lg border border-ink-200 bg-ink-50/60 px-3 py-2.5 dark:border-ink-800 dark:bg-ink-950/40">
+                <div key={label} className="flex items-center justify-between gap-3 rounded-xl bg-ink-500/[0.06] px-3 py-2.5 dark:bg-ink-400/[0.08]">
                   <div className="min-w-0">
                     <p className="label-caps">{label}</p>
                     <p className="mt-1 text-[12.5px] font-semibold">
@@ -216,13 +216,13 @@ export default function Dashboard() {
         actions={<Link className="btn-ghost" to="/health">Breakdown</Link>}
       >
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 xl:grid-cols-8">
-          <div className="rounded-md border border-accent-200 bg-accent-50 px-3 py-2.5 dark:border-accent-700/40 dark:bg-accent-700/15">
+          <div className="rounded-xl bg-accent-600/[0.10] px-3 py-2.5 dark:bg-accent-500/[0.16]">
             <p className="label-caps">Overall</p>
             <p className="tnum text-xl font-semibold text-accent-800 dark:text-accent-100">{health.overall ?? '—'}</p>
             <Badge tone={HEALTH_TONE[health.label] ?? 'neutral'}>{health.label}</Badge>
           </div>
           {health.pillars.map((pillar) => (
-            <div key={pillar.key} className="rounded-md border border-ink-200 px-3 py-2.5 dark:border-ink-800">
+            <div key={pillar.key} className="rounded-xl bg-ink-500/[0.06] px-3 py-2.5 dark:bg-ink-400/[0.08]">
                 <p className="label-caps leading-tight" title={pillar.label}>{pillar.label}</p>
               <p className="tnum text-xl font-semibold">{pillar.score ?? '—'}</p>
               <Badge tone={HEALTH_TONE[pillar.label_] ?? 'neutral'}>{pillar.label_}</Badge>
@@ -234,33 +234,37 @@ export default function Dashboard() {
       {analysis.anomalies.length > 0 && (
         <Card
           title="Anomaly explanation trail"
-          description="Raw values remain unchanged; these deterministic tests show which structural explanations were supported by the submitted data."
-          actions={<Link className="btn-ghost" to="/insights">Open insights</Link>}
+          description="Values outside their generic band, with the structural explanations that were tested against them. Raw values are never adjusted."
+          actions={<Link className="btn-ghost" to="/insights">Open full trail</Link>}
         >
           <div className="grid gap-2 md:grid-cols-2">
-            {analysis.anomalies.slice(0, 6).map((anomaly) => {
+            {analysis.anomalies.slice(0, 4).map((anomaly) => {
               const passed = anomaly.candidates.find((candidate) => candidate.evidence.passed);
               return (
-                <div key={`${anomaly.metric}-${anomaly.period}`} className="rounded-lg border border-ink-200 px-3 py-2.5 dark:border-ink-800">
+                <div key={`${anomaly.metric}-${anomaly.period}`} className="rounded-xl bg-ink-500/[0.06] px-3 py-2.5 dark:bg-ink-400/[0.08]">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="label-caps">{anomaly.metric} · {anomaly.period}</p>
-                    <Badge tone={anomaly.status === 'unexplained' ? 'negative' : 'positive'}>
+                    <p className="label-caps">
+                      {analysis.metrics[anomaly.metric]?.label ?? anomaly.metric} · {anomaly.period}
+                    </p>
+                    <Badge tone={anomaly.status === 'unexplained' ? 'negative' : anomaly.status === 'explained_concerning' ? 'caution' : 'positive'}>
                       {anomaly.status === 'unexplained' ? 'Unexplained' : 'Explained'}
                     </Badge>
                   </div>
-                  <p className="mt-1 text-[12.5px] font-semibold tnum">{anomaly.value.toFixed(2)}</p>
-                  <p className="mt-1 text-[12px] text-ink-600 dark:text-ink-400">
-                    {passed?.narrative ?? 'No candidate explanation passed; investigate the input and underlying business cause.'}
+                  <p className="mt-1 text-[12.5px] font-semibold tnum">
+                    {formatMetric(anomaly.value, analysis.metrics[anomaly.metric]?.unit ?? 'number', ctx)}
                   </p>
-                  {passed?.evidence.missingInputs.length ? (
-                    <p className="mt-1 text-2xs text-caution-700 dark:text-caution-400">
-                      Missing evidence: {passed.evidence.missingInputs.join(', ')}
-                    </p>
-                  ) : null}
+                  <p className="mt-1 text-[12px] text-ink-600 dark:text-ink-400">
+                    {passed?.narrative ?? 'No candidate explanation passed its test; the anomaly is escalated rather than softened.'}
+                  </p>
                 </div>
               );
             })}
           </div>
+          {analysis.anomalies.length > 4 && (
+            <p className="mt-2 text-2xs text-ink-500 dark:text-ink-400">
+              {analysis.anomalies.length - 4} more on the insights page, each with the failed tests and the inputs that would resolve them.
+            </p>
+          )}
         </Card>
       )}
 
