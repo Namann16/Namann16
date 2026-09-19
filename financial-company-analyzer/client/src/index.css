@@ -429,6 +429,9 @@
   }
 
   .table-scroll { @apply overflow-x-auto; scrollbar-width: thin; }
+  .statement-label-col {
+    min-width: 17.5rem;
+  }
 
   .fin-table tr.row-section td {
     @apply text-left text-footnote font-semibold py-[6px];
@@ -442,6 +445,29 @@
     @apply font-semibold;
     border-top: 0.5px solid var(--separator-opaque);
     background: var(--fill-quaternary);
+  }
+
+  @media (max-width: 640px) {
+    .fin-table {
+      font-size: 0.75rem;
+    }
+    .fin-table th,
+    .fin-table td {
+      @apply px-2 py-[6px];
+    }
+    .fin-table thead th {
+      font-size: 0.6875rem;
+    }
+    .statement-label-col {
+      min-width: 9.25rem;
+      width: 9.25rem;
+      max-width: 9.25rem;
+    }
+    .fin-table.sticky-labels tbody th {
+      max-width: 9.25rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   }
 
   /* ---------------------------------------------------------------- Controls */
@@ -755,32 +781,44 @@
     transform: translateY(10px) scale(0.985);
     filter: blur(7px);
   }
-  .scroll-revealed {
-    animation: scroll-dust-gather 360ms var(--ease-out) both;
+  .stagger > .scroll-reveal {
+    animation: none;
   }
-  .scroll-revealed::after {
+  .stagger > .scroll-revealed {
+    animation: scroll-dust-gather 520ms var(--ease-out) both;
+  }
+  .stagger > .scroll-revealed::after {
     content: '';
     position: absolute;
     inset: -12px;
     z-index: 5;
     pointer-events: none;
     opacity: 0;
+    mix-blend-mode: screen;
     background:
-      radial-gradient(circle at 12% 32%, rgba(10, 132, 255, 0.5) 0 1px, transparent 2px),
-      radial-gradient(circle at 26% 72%, rgba(10, 132, 255, 0.42) 0 1px, transparent 2px),
-      radial-gradient(circle at 48% 18%, rgba(10, 132, 255, 0.38) 0 1px, transparent 2px),
-      radial-gradient(circle at 71% 64%, rgba(10, 132, 255, 0.42) 0 1px, transparent 2px),
-      radial-gradient(circle at 88% 28%, rgba(10, 132, 255, 0.34) 0 1px, transparent 2px);
-    animation: dust-settle 360ms var(--ease-out) both;
+      radial-gradient(circle at 8% 26%, rgba(10, 132, 255, 0.55) 0 1px, transparent 2px),
+      radial-gradient(circle at 14% 68%, rgba(10, 132, 255, 0.42) 0 1px, transparent 2px),
+      radial-gradient(circle at 24% 42%, rgba(10, 132, 255, 0.5) 0 1px, transparent 2px),
+      radial-gradient(circle at 31% 82%, rgba(10, 132, 255, 0.38) 0 1px, transparent 2px),
+      radial-gradient(circle at 40% 18%, rgba(10, 132, 255, 0.48) 0 1px, transparent 2px),
+      radial-gradient(circle at 48% 58%, rgba(10, 132, 255, 0.44) 0 1px, transparent 2px),
+      radial-gradient(circle at 57% 30%, rgba(10, 132, 255, 0.5) 0 1px, transparent 2px),
+      radial-gradient(circle at 64% 78%, rgba(10, 132, 255, 0.4) 0 1px, transparent 2px),
+      radial-gradient(circle at 72% 12%, rgba(10, 132, 255, 0.46) 0 1px, transparent 2px),
+      radial-gradient(circle at 79% 52%, rgba(10, 132, 255, 0.5) 0 1px, transparent 2px),
+      radial-gradient(circle at 88% 30%, rgba(10, 132, 255, 0.42) 0 1px, transparent 2px),
+      radial-gradient(circle at 94% 74%, rgba(10, 132, 255, 0.36) 0 1px, transparent 2px);
+    animation: dust-settle 520ms var(--ease-out) both;
   }
   @keyframes scroll-dust-gather {
-    0% { opacity: 0; transform: translateY(10px) scale(0.985); filter: blur(7px); }
-    58% { opacity: 0.82; transform: translateY(1px) scale(0.998); filter: blur(1.5px); }
+    0% { opacity: 0; transform: translateY(8px) scale(0.985); filter: blur(6px); }
+    55% { opacity: 0.82; transform: translateY(1px) scale(0.998); filter: blur(1px); }
     100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
   }
   @keyframes dust-settle {
-    0% { opacity: 0.85; transform: scale(1.08); filter: blur(0); }
-    100% { opacity: 0; transform: scale(0.96); filter: blur(3px); }
+    0% { opacity: 0; transform: translateY(10px) scale(1.16); filter: blur(3px); }
+    28% { opacity: 0.62; transform: translateY(1px) scale(1.02); filter: blur(0); }
+    100% { opacity: 0; transform: translateY(-3px) scale(0.86); filter: blur(2px); }
   }
 
   @keyframes rise-in {
