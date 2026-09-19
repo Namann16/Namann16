@@ -42,6 +42,8 @@ export const periodSchema = z.object({
   endDate: z.string().max(40).nullable().optional(),
   order: z.number().int().min(0).max(100),
   isPartial: z.boolean().optional(),
+  unusual: z.boolean().optional(),
+  unusualReason: z.string().max(500).nullable().optional(),
   values: valuesRecord.default({}),
   sources: z.record(z.string(), z.enum(['entered', 'calculated'])).optional(),
 });
@@ -83,6 +85,23 @@ export const companyProfileSchema = z.object({
   fiscalYearEnd: z.string().max(40).nullable().optional(),
   reportingPeriod: z.enum(['annual', 'half_yearly', 'quarterly']).default('annual'),
   annualizeInterimMetrics: z.boolean().default(false),
+  sectorProfile: z.enum(['defence_capital_goods', 'fmcg_consumer', 'banking_financials', 'software_services', 'general']).optional(),
+  companyStage: z.enum(['early', 'growth', 'mature', 'turnaround', 'cyclical_trough', 'cyclical_peak']).optional(),
+  metricConfig: z.object({
+    roce: z.object({
+      numerator: z.enum(['ebit', 'ebit_plus_other_income']).optional(),
+      denominator: z.enum(['assets_less_current_liabilities', 'equity_plus_debt', 'equity_plus_debt_less_surplus_cash']).optional(),
+      excludeCustomerAdvances: z.boolean().optional(),
+    }).optional(),
+    roic: z.object({
+      surplusCashTreatment: z.enum(['cash_only', 'cash_and_liquid_investments']).optional(),
+      nopatBasis: z.enum(['effective_tax_rate', 'statutory_rate']).optional(),
+    }).optional(),
+    freeCashFlow: z.object({ capexBasis: z.enum(['ppe_only', 'ppe_plus_intangibles', 'total_investing_capex']).optional() }).optional(),
+    workingCapital: z.object({ basis: z.enum(['total_current', 'operating_only']).optional() }).optional(),
+    receivables: z.object({ dsoBasis: z.enum(['trade_only', 'trade_plus_unbilled', 'both']).optional() }).optional(),
+    inventory: z.object({ dioDenominator: z.enum(['cogs', 'total_operating_cost', 'revenue']).optional() }).optional(),
+  }).optional(),
   units: z.enum(['units', 'thousands', 'lakhs', 'millions', 'crores', 'billions']).default('units'),
   ticker: z.string().max(20).nullable().optional(),
   benchmark: z.string().max(80).nullable().optional(),

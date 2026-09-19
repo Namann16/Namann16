@@ -13,6 +13,8 @@
 export type Num = number | null;
 
 export type ValueSource = 'entered' | 'calculated';
+export type MetricPolarity = 'higher_is_better' | 'lower_is_better' | 'neutral' | 'context_dependent';
+export type DenominatorBasis = 'average' | 'spot';
 
 /** Why a metric has no value. Distinguishes "not available" from "zero" from "not applicable". */
 export type MetricStatus =
@@ -50,6 +52,9 @@ export interface MetricValue {
   meaning?: string;
   /** Direction that is generally favourable. Used by trend labelling, never by itself an assessment. */
   higherIsBetter?: boolean;
+  polarity?: MetricPolarity;
+  denominatorBasis?: DenominatorBasis;
+  saturationThreshold?: number;
 }
 
 /** A metric tracked across all periods, with the derived change and trend. */
@@ -69,6 +74,7 @@ export interface MetricSeries {
   /** Percentage change vs previous. null for percent/days metrics where absolute change is the meaningful measure. */
   changePercent: Num;
   trend: Trend;
+  polarity?: MetricPolarity;
 }
 
 export type MetricGroup =
@@ -115,6 +121,8 @@ export interface FinancialPeriod {
   sources: Record<string, ValueSource>;
   /** True when the period covers fewer than 12 months (interim / stub period). */
   isPartial?: boolean;
+  unusual?: boolean;
+  unusualReason?: string;
 }
 
 export type Units = 'units' | 'thousands' | 'lakhs' | 'millions' | 'crores' | 'billions';
@@ -146,6 +154,9 @@ export interface CompanyProfile {
   reportingPeriod?: 'annual' | 'half_yearly' | 'quarterly';
   /** Opt in to annualized growth and days-based metrics for interim reporting. */
   annualizeInterimMetrics?: boolean;
+  metricConfig?: MetricConfig;
+  sectorProfile?: SectorProfileKey;
+  companyStage?: CompanyStage;
   units: Units;
   ticker?: string | null;
   benchmark?: string | null;
@@ -168,6 +179,34 @@ export interface CompanyDataset {
   periods: FinancialPeriod[];
   peers?: PeerCompany[];
   thresholds?: Partial<ThresholdConfig>;
+  businessContext?: BusinessContext;
+}
+
+export type CompanyStage = 'early' | 'growth' | 'mature' | 'turnaround' | 'cyclical_trough' | 'cyclical_peak';
+export type RevenueRecognitionBasis = 'point_in_time' | 'over_time_milestone' | 'over_time_cost_to_cost' | 'subscription';
+export type CustomerType = 'government' | 'enterprise_b2b' | 'consumer' | 'mixed';
+export type SectorProfileKey = 'defence_capital_goods' | 'fmcg_consumer' | 'banking_financials' | 'software_services' | 'general';
+
+export interface MetricConfig {
+  roce?: {
+    numerator?: 'ebit' | 'ebit_plus_other_income';
+    denominator?: 'assets_less_current_liabilities' | 'equity_plus_debt' | 'equity_plus_debt_less_surplus_cash';
+    excludeCustomerAdvances?: boolean;
+  };
+  roic?: { surplusCashTreatment?: 'cash_only' | 'cash_and_liquid_investments'; nopatBasis?: 'effective_tax_rate' | 'statutory_rate' };
+  freeCashFlow?: { capexBasis?: 'ppe_only' | 'ppe_plus_intangibles' | 'total_investing_capex' };
+  workingCapital?: { basis?: 'total_current' | 'operating_only' };
+  receivables?: { dsoBasis?: 'trade_only' | 'trade_plus_unbilled' | 'both' };
+  inventory?: { dioDenominator?: 'cogs' | 'total_operating_cost' | 'revenue' };
+}
+
+export interface BusinessContext {
+  periods?: Record<string, {
+    orderBook?: Num; orderInflow?: Num; revenueRecognitionBasis?: RevenueRecognitionBasis;
+    largestCustomerPct?: Num; customersAboveTenPct?: Num; customerType?: CustomerType;
+    employeeCount?: Num; rdExpensed?: Num; rdCapitalised?: Num;
+    oneOffDescription?: string; oneOffAmount?: Num; unusual?: boolean; unusualReason?: string;
+  }>;
 }
 
 export interface ScenarioModification {
@@ -291,6 +330,33 @@ export interface DataQualityReport {
   skipped: number;
   /** 0-100 completeness of the core line items across all periods. */
   completeness: number;
+  degradedInputs?: string[];
+}
+
+export type AnomalyStatus = 'explained_benign' | 'explained_concerning' | 'unexplained';
+export type ExplanationSeverityEffect = 'downgrade_to_info' | 'downgrade_one' | 'neutral' | 'upgrade_one' | 'reframe_as_positive';
+export interface EvidenceResult {
+  passed: boolean;
+  confidence: 'strong' | 'moderate' | 'weak';
+  supportingFacts: string[];
+  missingInputs: string[];
+}
+export interface ExplanationResult {
+  id: string;
+  label: string;
+  evidence: EvidenceResult;
+  severityEffect: ExplanationSeverityEffect;
+  narrative: string;
+}
+export interface Anomaly {
+  metric: string;
+  period: string;
+  value: number;
+  genericBand: [number, number];
+  deviation: number;
+  candidates: ExplanationResult[];
+  status: AnomalyStatus;
+  finalSeverity: Severity;
 }
 
 export interface DuPontPeriod {
@@ -360,6 +426,7 @@ export interface AnalysisResult {
   insights: Insight[];
   executiveSummary: ExecutiveSummary;
   dataQuality: DataQualityReport;
+  anomalies: Anomaly[];
   peerComparison: PeerComparisonRow[];
   thresholds: ThresholdConfig;
   generatedAt: string;

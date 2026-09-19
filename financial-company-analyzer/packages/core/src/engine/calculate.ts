@@ -5,6 +5,7 @@ import type {
   MetricSeries,
   MetricValue,
   Num,
+  MetricConfig,
 } from '../types.js';
 import { cagr, isNum, percentChange, round, subtract } from '../utils/number.js';
 import { classifyTrend, makeMetric, notApplicable } from '../utils/metric.js';
@@ -20,7 +21,7 @@ import { val } from './normalize.js';
 export function calculateMetrics(
   periods: FinancialPeriod[],
   industry: IndustryKey | undefined,
-  options: { reportingPeriod?: 'annual' | 'half_yearly' | 'quarterly'; annualizeInterimMetrics?: boolean } = {},
+  options: { reportingPeriod?: 'annual' | 'half_yearly' | 'quarterly'; annualizeInterimMetrics?: boolean; metricConfig?: MetricConfig } = {},
 ): Record<string, MetricSeries> {
   const suppressed = suppressedMetricsFor(industry);
   const industryNote = industryProfile(industry).label;
@@ -35,6 +36,8 @@ export function calculateMetrics(
         formula: def.formula,
         meaning: def.meaning,
         ...(def.higherIsBetter !== undefined ? { higherIsBetter: def.higherIsBetter } : {}),
+        ...(def.polarity ? { polarity: def.polarity } : {}),
+        ...(def.saturationThreshold !== undefined ? { saturationThreshold: def.saturationThreshold } : {}),
       };
 
       if (suppressed.has(def.key) || (def.supportedIndustries && !def.supportedIndustries.includes(industry ?? 'general'))) {
@@ -52,9 +55,13 @@ export function calculateMetrics(
         prior: index > 0 ? periods[index - 1] : undefined,
         reportingPeriod: options.reportingPeriod,
         annualizeInterimMetrics: options.annualizeInterimMetrics,
+        metricConfig: options.metricConfig,
       };
-      const { value, inputs, note } = def.compute(ctx);
-      return makeMetric(spec, period.label, value, inputs, note ? { note } : {});
+      const { value, inputs, note, denominatorBasis } = def.compute(ctx);
+      return makeMetric(spec, period.label, value, inputs, {
+        ...(note ? { note } : {}),
+        ...(denominatorBasis ? { denominatorBasis } : {}),
+      });
     });
 
     const usable = points.filter((p) => p.status === 'ok' && isNum(p.value));
@@ -79,6 +86,7 @@ export function calculateMetrics(
       change: round(change, 4),
       changePercent: round(changePercent, 4),
       trend: classifyTrend(points.map((p) => p.value), def.higherIsBetter ?? true),
+      ...(def.polarity ? { polarity: def.polarity } : {}),
     };
   }
 

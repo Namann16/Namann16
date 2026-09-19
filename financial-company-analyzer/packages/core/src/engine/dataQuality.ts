@@ -9,7 +9,7 @@ import type {
   ThresholdConfig,
 } from '../types.js';
 import { isNum, sumDefined } from '../utils/number.js';
-import { formatCurrency } from '../utils/format.js';
+import { formatCurrency, formatMetric } from '../utils/format.js';
 import { CORE_LINE_ITEMS, labelFor } from './lineItems.js';
 import { val } from './normalize.js';
 
@@ -116,6 +116,51 @@ export function assessDataQuality(
         detail: 'CFO, CFI and CFF are all required to reconcile the movement in cash.',
       });
       continue;
+    }
+
+    /* ---------- Roll-forward and plausibility checks ---------- */
+    for (let i = 1; i < periods.length; i += 1) {
+      const period = periods[i]!;
+      const prior = periods[i - 1]!;
+      const rollForwards: [string, string, string][] = [
+        ['inventory', 'changeInInventory', 'Inventory'],
+        ['accountsReceivable', 'changeInReceivables', 'Receivables'],
+        ['accountsPayable', 'changeInPayables', 'Payables'],
+      ];
+      for (const [balanceKey, cashFlowKey, label] of rollForwards) {
+        const opening = val(prior, balanceKey);
+        const closing = val(period, balanceKey);
+        const movement = val(period, cashFlowKey);
+        if (!isNum(opening) || !isNum(closing) || !isNum(movement)) continue;
+        const expected = closing - opening;
+        const gap = expected + movement;
+        const tolerance = Math.max(Math.abs(closing) * 0.05, thresholds.balanceToleranceAbsolute);
+        if (Math.abs(gap) > tolerance) {
+          checks.push({
+            id: `rollforward.${balanceKey}.${period.label}`,
+            label: `${label} roll-forward — ${period.label}`,
+            status: 'fail',
+            period: period.label,
+            detail: `${label} changed by ${formatCurrency(expected, ctx)} but the cash-flow movement was ${formatCurrency(movement, ctx)}; the ${formatCurrency(gap, ctx)} gap indicates a mapping or omitted-flow issue.`,
+          });
+        }
+      }
+    }
+    for (const period of periods) {
+      const revenue = val(period, 'revenue');
+      const receivables = val(period, 'accountsReceivable');
+      const cogs = val(period, 'cogs');
+      const inventory = val(period, 'inventory');
+      if (isNum(revenue) && isNum(receivables) && receivables > revenue) {
+        checks.push({ id: `plausibility.receivables.${period.label}`, label: `Receivables exceed revenue — ${period.label}`, status: 'warn', period: period.label, detail: `Accounts receivable of ${formatCurrency(receivables, ctx)} exceeds revenue of ${formatCurrency(revenue, ctx)}. Check whether unbilled revenue has been combined with trade receivables.` });
+      }
+      if (isNum(cogs) && isNum(inventory) && cogs > 0 && inventory > cogs * 3) {
+        checks.push({ id: `plausibility.inventory.${period.label}`, label: `Inventory exceeds COGS plausibility bound — ${period.label}`, status: 'warn', period: period.label, detail: `Inventory of ${formatCurrency(inventory, ctx)} is more than three times COGS of ${formatCurrency(cogs, ctx)}. Confirm units and source mapping.` });
+      }
+      const ebitda = val(period, 'ebitda');
+      if (isNum(revenue) && isNum(ebitda) && (ebitda < -revenue || ebitda > revenue)) {
+        checks.push({ id: `plausibility.margin.${period.label}`, label: `Margin outside plausibility bounds — ${period.label}`, status: 'warn', period: period.label, detail: `EBITDA margin is outside −100% to +100% (${formatMetric(ebitda / revenue * 100, 'percent', ctx)}). Confirm the imported units.` });
+      }
     }
 
     const fx = val(period, 'fxEffectOnCash') ?? 0;
