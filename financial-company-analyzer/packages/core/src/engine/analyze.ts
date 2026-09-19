@@ -9,6 +9,7 @@ import { assessDataQuality } from './dataQuality.js';
 import { comparePeers } from './peers.js';
 import { resolveThresholds } from './thresholds.js';
 import { detectAnomalies } from './anomalies.js';
+import { findContradictions, suppressEmptyFlags, suppressEmptyInsights, withWindows } from './narrative.js';
 
 export const ENGINE_VERSION = '1.0.0';
 
@@ -36,12 +37,12 @@ export function analyze(dataset: CompanyDataset): AnalysisResult {
   });
   const duPont = analyzeDuPont(periods, metrics);
   const dataQuality = assessDataQuality(periods, dataset.company, metrics, thresholds);
-  const anomalies = detectAnomalies({ ...dataset, periods }, metrics);
+  const anomalies = detectAnomalies({ ...dataset, periods }, metrics, thresholds);
   const health = scoreHealth(metrics, thresholds, anomalies);
 
   const latestPeriod = periods.length ? periods[periods.length - 1]!.label : null;
 
-  const { redFlags, positiveSignals } = latestPeriod
+  const ruleOutput = latestPeriod
     ? runRules({
         company: dataset.company,
         periods,
@@ -51,6 +52,14 @@ export function analyze(dataset: CompanyDataset): AnalysisResult {
         fmtCtx: { currency: dataset.company.currency, units: dataset.company.units },
       })
     : { redFlags: [], positiveSignals: [] };
+
+  // Specification G4. A finding whose numeric slots are all zero or all identical is removed
+  // before anything downstream reads it, so the summary, the export and the LLM fact sheet all
+  // see the same set of findings a reader sees.
+  const redFlags = withWindows(suppressEmptyFlags(ruleOutput.redFlags));
+  const positiveSignals = withWindows(suppressEmptyFlags(ruleOutput.positiveSignals));
+  // Specification G2: the contradiction check runs over the finished finding set, before export.
+  const contradictions = findContradictions(redFlags, positiveSignals);
 
   const insightContext = {
     company: dataset.company,
@@ -64,7 +73,7 @@ export function analyze(dataset: CompanyDataset): AnalysisResult {
     thresholds,
   };
 
-  const insights = buildInsights(insightContext);
+  const insights = suppressEmptyInsights(buildInsights(insightContext));
   const executiveSummary = buildExecutiveSummary(insightContext, insights);
   const peerComparison = comparePeers(metrics, dataset.peers ?? []);
 
@@ -84,6 +93,7 @@ export function analyze(dataset: CompanyDataset): AnalysisResult {
     executiveSummary,
     dataQuality,
     anomalies,
+    contradictions,
     peerComparison,
     thresholds,
     generatedAt: new Date().toISOString(),

@@ -3,6 +3,7 @@ import type { Severity } from '@fca/core';
 import { useWorkspace } from '../state/WorkspaceContext';
 import { Badge, Card, EmptyState, PageHeader } from '../components/ui/primitives';
 import { FlagCard, InsightCard } from '../components/analysis/MetricViews';
+import { AnomalyTrail, ContradictionPanel } from '../components/analysis/AnomalyTrail';
 import { SENTIMENT_TONE } from '../lib/display';
 
 type Tab = 'all' | 'risks' | 'positives' | 'insights';
@@ -71,6 +72,10 @@ export default function Insights() {
           ))}
         </div>
       </Card>
+
+      <ContradictionPanel analysis={analysis} />
+
+      <AnomalyTrail analysis={analysis} />
 
       <Card padded={false}>
         <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2">

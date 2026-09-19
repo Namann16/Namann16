@@ -96,3 +96,55 @@ describe('document to domain conversion', () => {
     expect(result.thresholds.netDebtToEbitdaHigh).toBe(2.5);
   });
 });
+
+/**
+ * Specification C3 and C4 inputs cross three seams before they reach the engine: Zod validation,
+ * the Mongoose document, and the dataset the engine consumes. A field dropped at any one of them
+ * disables the explanation tests that depend on it, silently — the analysis still renders, it just
+ * stops being able to account for anything. These pin the two seams the application owns.
+ */
+describe('business context and period flags survive persistence', () => {
+  const doc = {
+    _id: 'abc',
+    name: 'Reference Co',
+    industry: 'manufacturing',
+    currency: 'INR',
+    units: 'crores',
+    metricConfig: { roce: { denominator: 'equity_plus_debt', excludeCustomerAdvances: true } },
+    sectorProfile: 'defence_capital_goods',
+    companyStage: 'mature',
+    businessContext: {
+      periods: { FY26: { orderBook: 254538, revenueRecognitionBasis: 'over_time_cost_to_cost' } },
+    },
+    periods: [
+      {
+        label: 'FY25',
+        order: 0,
+        unusual: true,
+        unusualReason: 'One-off surge in customer advances.',
+        values: new Map([['revenue', 30982]]),
+        sources: new Map([['revenue', 'entered']]),
+      },
+    ],
+    peers: [],
+    thresholds: new Map(),
+  };
+
+  it('carries the unusual-period flag off the document', () => {
+    const stored = fromDocument(doc);
+    expect(stored.periods[0]?.unusual).toBe(true);
+    expect(stored.periods[0]?.unusualReason).toBe('One-off surge in customer advances.');
+  });
+
+  it('carries the Part B metric configuration and the sector profile', () => {
+    const stored = fromDocument(doc);
+    expect(stored.company.metricConfig?.roce?.excludeCustomerAdvances).toBe(true);
+    expect(stored.company.sectorProfile).toBe('defence_capital_goods');
+    expect(stored.company.companyStage).toBe('mature');
+  });
+
+  it('hands the business context to the engine rather than dropping it', () => {
+    const stored = fromDocument(doc);
+    expect(toDataset(stored).businessContext?.periods?.FY26?.orderBook).toBe(254538);
+  });
+});
