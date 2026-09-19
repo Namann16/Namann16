@@ -229,6 +229,8 @@ export function FinancialChart({
                 dot={{ r: 3, strokeWidth: 2, stroke: chrome.surface, fill: colour }}
                 // A 2px surface ring keeps overlapping points readable where series cross.
                 activeDot={{ r: 5, strokeWidth: 2, stroke: chrome.surface }}
+                animationDuration={650}
+                animationEasing="ease-out"
               />
             );
           })}
@@ -243,13 +245,14 @@ export function FinancialChart({
           if (s.type === 'bar') {
             return (
               <Bar key={s.key} dataKey={s.key} name={s.key} fill={colour} radius={[3, 3, 0, 0]}
-                   stackId={stacked ? 'stack' : undefined} minPointSize={2} />
+                     stackId={stacked ? 'stack' : undefined} minPointSize={2} animationDuration={500} />
             );
           }
           return (
             <Line key={s.key} dataKey={s.key} name={s.key} type="monotone" stroke={colour}
                   strokeWidth={2.5} connectNulls dot={{ r: 3, strokeWidth: 2, stroke: chrome.surface, fill: colour }}
-                  activeDot={{ r: 5, strokeWidth: 2, stroke: chrome.surface }} />
+                  activeDot={{ r: 5, strokeWidth: 2, stroke: chrome.surface }} animationDuration={650}
+                  animationEasing="ease-out" />
           );
         })}
       </ComposedChart>

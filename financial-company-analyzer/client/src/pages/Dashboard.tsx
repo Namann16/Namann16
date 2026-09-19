@@ -141,7 +141,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPI row */}
-      <section aria-label="Key performance indicators" className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-6">
+      <section aria-label="Key performance indicators" className="dashboard-kpis grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-6">
         <KpiCard label="Revenue" series={metrics['revenue']} company={company} emphasise />
         <KpiCard label="Revenue growth" series={metrics['revenueGrowth']} company={company} />
         <KpiCard label="EBITDA" series={metrics['ebitdaValue']} company={company} />

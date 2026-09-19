@@ -108,7 +108,7 @@ export default function Landing() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <section className="hero-glow rounded-2xl px-6 py-8 sm:px-8 sm:py-10">
+      <section className="hero-glow animate-fade-up rounded-2xl px-6 py-8 sm:px-8 sm:py-10">
         <div className="max-w-2xl">
           <p className="mb-3 text-footnote font-medium text-accent-300">Decision intelligence for finance teams</p>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">See the story behind the numbers.</h1>
@@ -123,14 +123,14 @@ export default function Landing() {
           </div>
         </div>
         <div className="mt-8 grid max-w-xl grid-cols-3 gap-3 border-t border-white/20 pt-5 text-white/90 sm:mt-10">
-          <div><p className="text-xl font-semibold">64+</p><p className="text-2xs text-blue-100">calculated metrics</p></div>
-          <div><p className="text-xl font-semibold">100%</p><p className="text-2xs text-blue-100">traceable evidence</p></div>
-          <div><p className="text-xl font-semibold">0</p><p className="text-2xs text-blue-100">silent assumptions</p></div>
+          <div className="animate-float"><p className="text-xl font-semibold">64+</p><p className="text-2xs text-blue-100">calculated metrics</p></div>
+          <div className="animate-float" style={{ animationDelay: '120ms' }}><p className="text-xl font-semibold">100%</p><p className="text-2xs text-blue-100">traceable evidence</p></div>
+          <div className="animate-float" style={{ animationDelay: '240ms' }}><p className="text-xl font-semibold">0</p><p className="text-2xs text-blue-100">silent assumptions</p></div>
         </div>
       </section>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <button type="button" onClick={() => setSetupOpen(true)} className="feature-card px-5 py-5 text-left transition-transform hover:-translate-y-0.5">
+        <button type="button" onClick={() => setSetupOpen(true)} className="feature-card animate-pulse-soft px-5 py-5 text-left transition-transform hover:-translate-y-0.5">
           <span className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-accent-600/[0.08] text-lg text-accent-700 dark:bg-accent-700/20">＋</span>
           <p className="text-[13px] font-semibold text-ink-900 dark:text-ink-50">Create a new analysis</p>
           <p className="mt-1 text-[12.5px] leading-relaxed text-ink-600 dark:text-ink-400">
