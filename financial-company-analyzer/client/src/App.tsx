@@ -82,6 +82,18 @@ export default function App() {
   const finishEntrySplash = () => setShowEntrySplash(false);
 
   useEffect(() => {
+    if (!showEntrySplash) return;
+    const htmlOverflow = document.documentElement.style.overflow;
+    const bodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.documentElement.style.overflow = htmlOverflow;
+      document.body.style.overflow = bodyOverflow;
+    };
+  }, [showEntrySplash]);
+
+  useEffect(() => {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     window.scrollTo({ top: 0, left: 0, behavior: reduced ? 'auto' : 'smooth' });
   }, [location.pathname]);
