@@ -65,7 +65,7 @@ export default function LiquiditySolvency() {
   const insights = analysis.insights.filter((i) => i.category === 'liquidity' || i.category === 'solvency');
 
   return (
-    <div className="space-y-5">
+    <div className="stagger space-y-5">
       <PageHeader
         title="Liquidity & Solvency"
         description="Liquidity asks whether the company can pay what falls due in the next year. Solvency asks whether its capital structure is sustainable over the longer term. A company can be solvent and still run out of cash, which is why both are shown together."

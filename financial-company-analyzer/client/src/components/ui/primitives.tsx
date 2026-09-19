@@ -107,6 +107,50 @@ export function EmptyState({ title, message, action }: { title: string; message:
   );
 }
 
+/**
+ * Skeleton placeholder.
+ *
+ * Shown while an analysis is being calculated. A shape that matches the content it stands in for
+ * tells the reader what is about to arrive and keeps the layout from jumping when it does; a
+ * spinner in the middle of an empty page tells them only that something is happening.
+ *
+ * It is hidden from assistive technology and paired with a live region that announces the state in
+ * words, because a shimmering rectangle means nothing read aloud.
+ */
+export function Skeleton({ className = '' }: { className?: string }) {
+  return <div className={`skeleton ${className}`} aria-hidden="true" />;
+}
+
+/** The dashboard's shape, drawn as placeholders. */
+export function AnalysisSkeleton({ label = 'Calculating analysis' }: { label?: string }) {
+  return (
+    <div className="space-y-5">
+      <span className="sr-only" role="status" aria-live="polite">{label}</span>
+      <div className="space-y-2">
+        <Skeleton className="h-6 w-64" />
+        <Skeleton className="h-3.5 w-96 max-w-full" />
+      </div>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="surface space-y-2 px-3 py-2.5">
+            <Skeleton className="h-2.5 w-20" />
+            <Skeleton className="h-6 w-24" />
+            <Skeleton className="h-2.5 w-16" />
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="surface space-y-3 p-4">
+            <Skeleton className="h-3.5 w-40" />
+            <Skeleton className="h-44 w-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function Spinner({ label = 'Loading' }: { label?: string }) {
   return (
     <div className="flex items-center gap-2 text-[12.5px] text-ink-500 dark:text-ink-400" role="status">

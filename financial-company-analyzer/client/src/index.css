@@ -45,6 +45,25 @@
     --surface: #FFFFFF;
     --surface-raised: #FFFFFF;
     --page: #F2F2F7;
+
+    /*
+     * Motion.
+     *
+     * Apple's rule is that animation explains a relationship — where something came from, where it
+     * went, what changed — and is otherwise absent. Nothing here decorates. Durations are short
+     * because this is a tool people use repeatedly: an animation you notice twice is charming, and
+     * the same animation on the four-hundredth navigation is an obstacle.
+     *
+     * `--ease-out` is the standard decelerating curve for something arriving.
+     * `--ease-spring` overshoots very slightly, for a control responding to a press.
+     * `--ease-in-out` is for something moving between two on-screen positions.
+     */
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.34, 1.32, 0.64, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --duration-fast: 150ms;
+    --duration-base: 260ms;
+    --duration-slow: 420ms;
   }
 
   .dark {
@@ -120,9 +139,25 @@
     box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px theme('colors.accent.500');
   }
 
+  /*
+   * Reduce Motion is honoured everywhere, not softened. Someone who turns it on is often doing so
+   * because motion makes them ill, so the correct response is to remove it rather than shorten it.
+   * Everything below still ends in exactly the same final state — no information lives in the
+   * movement itself, which is what makes removing it safe.
+   */
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) { animation: none !important; }
   }
+
+  html { scroll-behavior: smooth; }
 }
 
 @layer components {
@@ -466,4 +501,164 @@
 
   /* A plot sits directly on the card. Nothing frames the data. */
   .chart-frame { @apply rounded-lg; }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Motion                                                                     */
+/* ------------------------------------------------------------------------- */
+
+@layer components {
+  /*
+   * Route transitions.
+   *
+   * The View Transitions API cross-fades the outgoing page against the incoming one and slides the
+   * new content up a few pixels, which is the same relationship an iOS push describes: the new
+   * screen arrives, it does not simply replace what was there. The chrome — sidebar, toolbar —
+   * is given its own view-transition-name so it stays put while only the content changes, which is
+   * what stops the whole window flickering on every navigation.
+   *
+   * Browsers without the API get an ordinary instant navigation, so nothing depends on it.
+   */
+  ::view-transition-old(page),
+  ::view-transition-new(page) {
+    animation-duration: var(--duration-base);
+    animation-timing-function: var(--ease-out);
+  }
+  ::view-transition-old(page) { animation-name: page-exit; }
+  ::view-transition-new(page) { animation-name: page-enter; }
+
+  /* The sidebar and toolbar persist across navigations and must not animate at all. */
+  ::view-transition-group(chrome),
+  ::view-transition-group(toolbar) { animation: none; }
+  ::view-transition-old(chrome),
+  ::view-transition-new(chrome),
+  ::view-transition-old(toolbar),
+  ::view-transition-new(toolbar) { animation: none; mix-blend-mode: normal; }
+
+  @keyframes page-exit {
+    from { opacity: 1; transform: none; }
+    to { opacity: 0; transform: translateY(-4px); }
+  }
+  @keyframes page-enter {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /*
+   * Staggered entrance.
+   *
+   * Cards rise into place in reading order rather than appearing at once, so the eye is led down
+   * the page instead of having to choose where to start. The stagger is capped: past about eight
+   * items the delay stops growing, because a reader should never be made to wait for content.
+   */
+  .stagger > * {
+    animation: rise-in var(--duration-base) var(--ease-out) both;
+  }
+  .stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger > *:nth-child(2) { animation-delay: 40ms; }
+  .stagger > *:nth-child(3) { animation-delay: 80ms; }
+  .stagger > *:nth-child(4) { animation-delay: 120ms; }
+  .stagger > *:nth-child(5) { animation-delay: 160ms; }
+  .stagger > *:nth-child(6) { animation-delay: 200ms; }
+  .stagger > *:nth-child(7) { animation-delay: 240ms; }
+  .stagger > *:nth-child(n + 8) { animation-delay: 280ms; }
+
+  @keyframes rise-in {
+    from { opacity: 0; transform: translateY(10px) scale(0.995); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* A single element arriving on its own — a banner, a result panel. */
+  .animate-in { animation: rise-in var(--duration-base) var(--ease-out) both; }
+
+  /*
+   * A sheet is presented, not revealed: it scales up very slightly from behind the scrim, the way
+   * a modal does on iPadOS. The scrim fades on its own so the blur does not pop in.
+   */
+  .sheet { animation: sheet-in var(--duration-base) var(--ease-spring) both; }
+  .scrim { animation: scrim-in var(--duration-fast) linear both; }
+
+  @keyframes sheet-in {
+    from { opacity: 0; transform: translateY(12px) scale(0.97); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes scrim-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* On a phone a sheet comes up from the bottom edge, as it does on iOS. */
+  @media (max-width: 640px) {
+    @keyframes sheet-in {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: none; }
+    }
+  }
+
+  /*
+   * The segmented control's selection is a thumb that MOVES between segments rather than a colour
+   * that switches. That movement is the whole point of the control: it shows the choice travelling
+   * from where it was to where it now is.
+   */
+  .segmented { position: relative; isolation: isolate; }
+  .segment {
+    position: relative;
+    z-index: 1;
+    transition:
+      color var(--duration-fast) linear,
+      transform var(--duration-fast) var(--ease-spring);
+  }
+  .segment:active:not([aria-selected='true']):not([aria-pressed='true']) { transform: scale(0.96); }
+  .segment[aria-selected='true'],
+  .segment[aria-pressed='true'] {
+    /* The thumb itself is a pseudo-element so it can animate independently of the label. */
+    animation: thumb-settle var(--duration-base) var(--ease-spring) both;
+  }
+  @keyframes thumb-settle {
+    from { transform: scale(0.94); }
+    to { transform: none; }
+  }
+
+  /*
+   * A figure that has just been recalculated gets one brief highlight. This is the only animation
+   * here that carries meaning: it answers "what changed?" without the reader having to diff two
+   * screens. It fires once and leaves no residue.
+   */
+  .value-changed { animation: value-flash var(--duration-slow) var(--ease-out) both; }
+  @keyframes value-flash {
+    0% { background-color: rgba(0, 122, 255, 0.16); }
+    100% { background-color: transparent; }
+  }
+
+  /* Sparklines and chart lines draw themselves in rather than appearing complete. */
+  .draw-in {
+    stroke-dasharray: var(--dash-length, 1000);
+    stroke-dashoffset: var(--dash-length, 1000);
+    animation: draw var(--duration-slow) var(--ease-out) forwards;
+  }
+  @keyframes draw {
+    to { stroke-dashoffset: 0; }
+  }
+
+  /*
+   * Skeleton shimmer, used while an analysis is recalculating. A determinate-looking shape that
+   * matches the content it stands in for tells the reader what is coming; a spinner does not.
+   */
+  .skeleton {
+    background-image: linear-gradient(90deg, var(--fill-quaternary) 25%, var(--fill-tertiary) 37%, var(--fill-quaternary) 63%);
+    background-size: 400% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+    border-radius: 0.4375rem;
+  }
+  @keyframes shimmer {
+    from { background-position: 100% 50%; }
+    to { background-position: 0 50%; }
+  }
+
+  /* A row arriving in a table, used when a scenario or a filter changes the set. */
+  .row-in { animation: row-in var(--duration-fast) var(--ease-out) both; }
+  @keyframes row-in {
+    from { opacity: 0; transform: translateY(-3px); }
+    to { opacity: 1; transform: none; }
+  }
 }

@@ -82,7 +82,7 @@ export default function Statements() {
   let section = '';
 
   return (
-    <div className="space-y-4">
+    <div className="stagger space-y-4">
       <PageHeader
         title="Financial Statements"
         description={

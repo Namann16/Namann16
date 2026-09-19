@@ -54,7 +54,7 @@ export default function CashFlow() {
   const latestFcf = fcfSeries?.latest;
 
   return (
-    <div className="space-y-5">
+    <div className="stagger space-y-5">
       <PageHeader
         title="Cash Flow Analysis"
         description="Profit is an opinion shaped by accounting policy; cash is a fact. This section tests whether reported earnings are arriving as cash, what the business is spending to sustain itself, and what is genuinely left over."

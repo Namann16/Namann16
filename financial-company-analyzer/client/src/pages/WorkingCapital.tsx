@@ -47,7 +47,7 @@ export default function WorkingCapital() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="stagger space-y-5">
       <PageHeader
         title="Working Capital"
         description="Working capital is the cash tied up in running the business day to day. A cycle that lengthens as a company grows quietly consumes the cash that profit appears to generate, which is why the balances are compared against revenue rather than read on their own."

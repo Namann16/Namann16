@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line, LineChart,
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -353,9 +353,23 @@ export function Sparkline({ values, tone = 'accent' }: { values: (number | null)
 
   const stroke = tone === 'positive' ? STATUS_COLORS.good : tone === 'negative' ? STATUS_COLORS.critical : seriesColor(mode, 0);
 
+  // A rough upper bound on the path length, used to seed the draw-in dash offset. It only has to
+  // be at least as long as the path, so the line finishes drawing rather than stopping short.
+  const dashLength = Math.ceil(width + height * points.length);
+
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="inline-block align-middle" aria-hidden="true">
-      <path d={path} fill="none" stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      {/* The line draws itself left to right, which is the direction it is read in. */}
+      <path
+        className="draw-in"
+        style={{ '--dash-length': dashLength } as CSSProperties}
+        d={path}
+        fill="none"
+        stroke={stroke}
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
