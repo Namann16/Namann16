@@ -347,6 +347,7 @@ export function Sparkline({
   redrawKey?: number;
 }) {
   const mode = useChartMode();
+  const [hoverRedraw, setHoverRedraw] = useState(0);
   const points = values.filter((v): v is number => typeof v === 'number');
   if (points.length < 2) return <span className="text-2xs text-ink-400">—</span>;
 
@@ -367,10 +368,17 @@ export function Sparkline({
   const dashLength = Math.ceil(width + height * points.length);
 
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="inline-block align-middle" aria-hidden="true">
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      className="inline-block align-middle"
+      aria-hidden="true"
+      onMouseEnter={() => setHoverRedraw((current) => current + 1)}
+    >
       {/* The line draws itself left to right, which is the direction it is read in. */}
       <path
-        key={redrawKey}
+        key={`${redrawKey}-${hoverRedraw}`}
         className="draw-in"
         style={{ '--dash-length': dashLength } as CSSProperties}
         d={path}
