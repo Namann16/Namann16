@@ -364,10 +364,11 @@
     letter-spacing: 0;
     text-transform: none;
   }
-  /* Where a genuine group header is needed, it is a semibold footnote, not small caps. */
+  /* Group headers should be easy to scan without competing with the active row. */
   .group-header {
-    @apply text-footnote font-semibold;
-    color: var(--label-secondary);
+    @apply text-callout font-semibold;
+    color: var(--label);
+    letter-spacing: -0.01em;
   }
 
   /* KPI tile: the figure dominates; nothing else on the tile competes with it. */
@@ -616,7 +617,7 @@
 
   /* Sidebar row: a filled accent capsule when selected, a neutral fill on hover. */
   .sidebar-item {
-    @apply block rounded-md px-2.5 py-[5px] text-callout;
+    @apply flex items-center gap-2 rounded-md px-2.5 py-[5px] text-callout;
     color: rgb(var(--label));
     transition: background-color 150ms linear, color 150ms linear;
   }
@@ -652,6 +653,30 @@
     pointer-events: none;
   }
   .hero-glow > * { position: relative; z-index: 1; }
+  .hero-video { isolation: isolate; }
+  .hero-video-media,
+  .hero-video-scrim {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .hero-video-media {
+    z-index: 0;
+    object-fit: cover;
+    opacity: 0.48;
+    filter: saturate(0.9) contrast(1.08);
+  }
+  .hero-video-scrim {
+    z-index: 1;
+    background:
+      linear-gradient(90deg, rgba(2, 6, 23, 0.9) 0%, rgba(2, 6, 23, 0.62) 58%, rgba(2, 6, 23, 0.42) 100%),
+      linear-gradient(180deg, rgba(2, 6, 23, 0.18), rgba(2, 6, 23, 0.55));
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-video-media { display: none; }
+  }
 
   /* Feature tiles carry no coloured top rule; the icon and the heading do that work. */
   .feature-card { @apply surface relative overflow-hidden; }
