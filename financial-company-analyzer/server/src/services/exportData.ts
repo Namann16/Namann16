@@ -129,6 +129,17 @@ function analysisSheet(result: AnalysisResult): XLSX.WorkSheet {
   rows.push(['Status', 'Check', 'Detail']);
   for (const check of result.dataQuality.checks) rows.push([check.status, check.label, check.detail]);
 
+  rows.push(['Anomaly explanation trail']);
+  rows.push(['Metric', 'Period', 'Value', 'Generic band', 'Status', 'Final severity', 'Candidates tested', 'Passed evidence']);
+  for (const anomaly of result.anomalies) {
+    rows.push([
+      anomaly.metric, anomaly.period, anomaly.value, `${anomaly.genericBand[0]}–${anomaly.genericBand[1]}`,
+      anomaly.status, anomaly.finalSeverity,
+      anomaly.candidates.map((candidate) => candidate.label).join('; '),
+      anomaly.candidates.filter((candidate) => candidate.evidence.passed).map((candidate) => candidate.narrative).join('; '),
+    ]);
+  }
+
   const sheet = XLSX.utils.aoa_to_sheet(rows);
   sheet['!cols'] = [{ wch: 22 }, { wch: 46 }, { wch: 110 }, { wch: 14 }];
   return sheet;
@@ -148,6 +159,9 @@ export function buildExportWorkbook(result: AnalysisResult): XLSX.WorkBook {
     ['Latest period', result.latestPeriod ?? 'n/a'],
     ['Generated', result.generatedAt],
     ['Engine version', result.engineVersion],
+    ['Template version', 'v2'],
+    ['Sector profile', result.company.sectorProfile ?? 'general'],
+    ['Metric configuration', JSON.stringify(result.company.metricConfig ?? {})],
     ...(result.company.isSample ? [[], ['NOTE', 'This export is based on fictional sample data supplied with the application. It does not describe a real company.']] : []),
     [],
     ['This workbook contains the normalized raw data (marked Entered or Calculated), the metrics derived from it, and the written analysis.'],

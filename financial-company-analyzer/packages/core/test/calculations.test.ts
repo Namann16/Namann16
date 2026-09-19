@@ -126,9 +126,9 @@ describe('margins and returns', () => {
 
   it('calculates ROIC from NOPAT over invested capital', () => {
     // Effective tax rate = 40/130 = 30.769%. NOPAT = 150 * (1 - 0.30769) = 103.846.
-    // Invested capital = equity + total debt - cash: 520+300-100 = 720 prior, 560+300-100 = 760
-    // current, so the average invested capital is 740.
-    expect(latest('roic') as number).toBeCloseTo((103.84615 / 740) * 100, 2);
+    // Invested capital uses the shared surplus-cash definition (cash plus short-term investments):
+    // 520+300-120 = 700 prior, 560+300-140 = 720 current, average 710.
+    expect(latest('roic') as number).toBeCloseTo((103.84615 / 720) * 100, 2);
   });
 
   it('reports ROE as unavailable when equity is negative', () => {
@@ -160,10 +160,10 @@ describe('liquidity and solvency', () => {
     expect(latest('interestCoverage') as number).toBeCloseTo(150 / 30, 4);     // 5.0x
   });
 
-  it('reports net cash as zero leverage rather than a negative multiple', () => {
+  it('preserves signed net cash leverage rather than flooring it at zero', () => {
     const netCash = metricsFor([period('FY24', 0, { ...base, cash: 500 })]);
     const point = netCash.metrics['netDebtToEbitda']!.latest!;
-    expect(point.value).toBe(0);
+    expect(point.value).toBe(-1.1);
     expect(point.note).toMatch(/net cash/i);
   });
 

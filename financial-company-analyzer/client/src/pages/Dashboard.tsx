@@ -231,6 +231,39 @@ export default function Dashboard() {
         </div>
       </Card>
 
+      {analysis.anomalies.length > 0 && (
+        <Card
+          title="Anomaly explanation trail"
+          description="Raw values remain unchanged; these deterministic tests show which structural explanations were supported by the submitted data."
+          actions={<Link className="btn-ghost" to="/insights">Open insights</Link>}
+        >
+          <div className="grid gap-2 md:grid-cols-2">
+            {analysis.anomalies.slice(0, 6).map((anomaly) => {
+              const passed = anomaly.candidates.find((candidate) => candidate.evidence.passed);
+              return (
+                <div key={`${anomaly.metric}-${anomaly.period}`} className="rounded-lg border border-ink-200 px-3 py-2.5 dark:border-ink-800">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="label-caps">{anomaly.metric} · {anomaly.period}</p>
+                    <Badge tone={anomaly.status === 'unexplained' ? 'negative' : 'positive'}>
+                      {anomaly.status === 'unexplained' ? 'Unexplained' : 'Explained'}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-[12.5px] font-semibold tnum">{anomaly.value.toFixed(2)}</p>
+                  <p className="mt-1 text-[12px] text-ink-600 dark:text-ink-400">
+                    {passed?.narrative ?? 'No candidate explanation passed; investigate the input and underlying business cause.'}
+                  </p>
+                  {passed?.evidence.missingInputs.length ? (
+                    <p className="mt-1 text-2xs text-caution-700 dark:text-caution-400">
+                      Missing evidence: {passed.evidence.missingInputs.join(', ')}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Revenue and EBITDA" description="Absolute levels above, and the margin they imply below, over the same years.">

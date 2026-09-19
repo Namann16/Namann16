@@ -1,4 +1,4 @@
-import type { FinancialPeriod, IndustryKey, MetricGroup, MetricUnit, Num } from '../types.js';
+import type { FinancialPeriod, IndustryKey, MetricConfig, MetricGroup, MetricUnit, Num } from '../types.js';
 import {
   add,
   average,
@@ -19,6 +19,7 @@ export interface MetricContext {
   prior: FinancialPeriod | undefined;
   annualizeInterimMetrics?: boolean;
   reportingPeriod?: 'annual' | 'half_yearly' | 'quarterly';
+  metricConfig?: MetricConfig;
 }
 
 export interface MetricComputation {
@@ -26,6 +27,7 @@ export interface MetricComputation {
   /** Every raw input consumed, so the result is fully traceable. */
   inputs: Record<string, Num>;
   note?: string;
+  denominatorBasis?: 'average' | 'spot';
 }
 
 export interface MetricDefinition {
@@ -36,6 +38,8 @@ export interface MetricDefinition {
   formula: string;
   meaning: string;
   higherIsBetter?: boolean;
+  polarity?: 'higher_is_better' | 'lower_is_better' | 'neutral' | 'context_dependent';
+  saturationThreshold?: number;
   /** When true a change is naturally expressed in absolute terms (pp, days, x) not in %. */
   absoluteChangeOnly?: boolean;
   supportedIndustries?: IndustryKey[];
@@ -55,14 +59,24 @@ export function totalDebt(p: FinancialPeriod | undefined): Num {
 export function netDebt(p: FinancialPeriod | undefined): Num {
   const debt = totalDebt(p);
   if (!isNum(debt)) return null;
-  const liquid = sumDefined([val(p, 'cash'), val(p, 'shortTermInvestments')]) ?? 0;
+  const liquid = surplusCash(p) ?? 0;
   return debt - liquid;
 }
 
+/** Single source of truth for surplus cash used by leverage and return metrics. */
+export function surplusCash(p: FinancialPeriod | undefined, treatment: 'cash_only' | 'cash_and_liquid_investments' = 'cash_and_liquid_investments'): Num {
+  if (!p) return null;
+  return treatment === 'cash_only' ? val(p, 'cash') : sumDefined([val(p, 'cash'), val(p, 'shortTermInvestments')]);
+}
+
 /** Free cash flow = CFO − capital expenditure. */
-export function freeCashFlow(p: FinancialPeriod | undefined): Num {
+export function freeCashFlow(p: FinancialPeriod | undefined, config?: MetricConfig): Num {
   const cfo = val(p, 'cfo');
-  const capex = val(p, 'capex');
+  const ppeCapex = val(p, 'purchaseOfPPE') ?? val(p, 'capex');
+  const intangibles = sumDefined([val(p, 'purchaseOfIntangibles'), val(p, 'purchaseOfIntangibleDevelopment')]) ?? 0;
+  const capex = config?.freeCashFlow?.capexBasis === 'ppe_only'
+    ? ppeCapex
+    : isNum(ppeCapex) ? ppeCapex + intangibles : null;
   if (!isNum(cfo) || !isNum(capex)) return null;
   return cfo - Math.abs(capex);
 }
@@ -75,7 +89,7 @@ export function investedCapital(p: FinancialPeriod | undefined): Num {
   const equity = val(p, 'totalEquity');
   const debt = totalDebt(p);
   if (!isNum(equity) || !isNum(debt)) return null;
-  const cash = val(p, 'cash') ?? 0;
+  const cash = surplusCash(p) ?? 0;
   return equity + debt - cash;
 }
 
@@ -104,18 +118,20 @@ export function workingCapital(p: FinancialPeriod | undefined): Num {
  * When no prior period exists the closing balance is used and the caller is told so, because
  * silently mixing the two methodologies would make period comparisons misleading.
  */
-function avgBalance(ctx: MetricContext, key: string): { value: Num; note?: string; inputs: Record<string, Num> } {
+function avgBalance(ctx: MetricContext, key: string): { value: Num; note?: string; inputs: Record<string, Num>; denominatorBasis: 'average' | 'spot' } {
   const cur = val(ctx.current, key);
   const prev = val(ctx.prior, key);
   if (isNum(cur) && isNum(prev)) {
     return {
       value: average(cur, prev),
+      denominatorBasis: 'average',
       inputs: { [`${key} (opening)`]: prev, [`${key} (closing)`]: cur },
     };
   }
   return {
     value: cur,
-    note: 'Closing balance used — no prior-period balance is available to compute an average.',
+    denominatorBasis: 'spot',
+    note: 'Closing balance used — no prior-period balance is available to compute an average. This point is not directly comparable with average-based periods.',
     inputs: { [`${key} (closing)`]: cur },
   };
 }
@@ -188,7 +204,7 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     key: 'sameStoreSalesGrowth', label: 'Same-Store Sales Growth', group: 'growth', unit: 'percent',
     formula: '(Same-Store Revenue − Prior Same-Store Revenue) / Prior Same-Store Revenue',
     meaning: 'Growth from comparable stores, excluding the effect of openings and closures.',
-    higherIsBetter: true, absoluteChangeOnly: true,
+    higherIsBetter: true, polarity: 'neutral', absoluteChangeOnly: true,
     supportedIndustries: ['retail'],
     compute: (ctx) => growth(ctx, 'sameStoreRevenue'),
   },
@@ -234,14 +250,14 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     key: 'revenueGrowth', label: 'Revenue Growth (YoY)', group: 'growth', unit: 'percent',
     formula: '(Revenue − Prior Revenue) / Prior Revenue',
     meaning: 'Rate at which the top line expanded or contracted versus the prior period.',
-    higherIsBetter: true, absoluteChangeOnly: true,
+    higherIsBetter: false, polarity: 'lower_is_better', absoluteChangeOnly: true,
     compute: (ctx) => growth(ctx, 'revenue'),
   },
   {
     key: 'ebitdaGrowth', label: 'EBITDA Growth (YoY)', group: 'growth', unit: 'percent',
     formula: '(EBITDA − Prior EBITDA) / Prior EBITDA',
     meaning: 'Growth in operating profitability before non-cash charges.',
-    higherIsBetter: true, absoluteChangeOnly: true,
+    higherIsBetter: false, polarity: 'lower_is_better', absoluteChangeOnly: true,
     compute: (ctx) => growth(ctx, 'ebitda'),
   },
   {
@@ -278,8 +294,8 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     meaning: 'Growth in cash left after maintaining and expanding the asset base.',
     higherIsBetter: true, absoluteChangeOnly: true,
     compute: (ctx) => {
-      const cur = freeCashFlow(ctx.current);
-      const prev = freeCashFlow(ctx.prior);
+      const cur = freeCashFlow(ctx.current, ctx.metricConfig);
+      const prev = freeCashFlow(ctx.prior, ctx.metricConfig);
       return { value: percentChange(prev, cur), inputs: { 'FCF (prior)': prev, 'FCF (current)': cur } };
     },
   },
@@ -475,17 +491,31 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
   },
   {
     key: 'roce', label: 'Return on Capital Employed (ROCE)', group: 'returns', unit: 'percent',
-    formula: 'Annualized EBIT / (Total Assets − Total Current Liabilities)',
+    formula: 'Annualized EBIT / resolved capital employed definition',
     meaning: 'Pre-tax operating return on the long-term capital financing the business.',
     higherIsBetter: true, absoluteChangeOnly: true,
     compute: (ctx) => {
       const ebit = annualizedFlow(ctx, 'ebit');
       const ta = val(ctx.current, 'totalAssets');
       const tcl = val(ctx.current, 'totalCurrentLiabilities');
-      const employed = subtract(ta, tcl);
+      const equity = val(ctx.current, 'totalEquity');
+      const debt = totalDebt(ctx.current);
+      const advances = sumDefined([val(ctx.current, 'customerAdvancesCurrent'), val(ctx.current, 'customerAdvancesNonCurrent')]) ?? 0;
+      const config = ctx.metricConfig?.roce;
+      const numerator = config?.numerator === 'ebit_plus_other_income'
+        ? add(ebit.value, val(ctx.current, 'otherIncome'))
+        : ebit.value;
+      const employed = config?.denominator === 'equity_plus_debt'
+        ? (isNum(equity) && isNum(debt) ? equity + debt : null)
+        : config?.denominator === 'equity_plus_debt_less_surplus_cash'
+          ? (isNum(equity) && isNum(debt) ? equity + debt - (surplusCash(ctx.current) ?? 0) : null)
+          : (() => {
+              const base = subtract(ta, tcl);
+              return isNum(base) ? base - (config?.excludeCustomerAdvances ? advances : 0) : null;
+            })();
       return {
-        value: toPercent(safeDivPositiveDenominator(ebit.value, employed)),
-        inputs: { ebit: ebit.value, totalAssets: ta, totalCurrentLiabilities: tcl, 'capital employed': employed },
+        value: toPercent(safeDivPositiveDenominator(numerator, employed)),
+        inputs: { ebit: numerator, totalAssets: ta, totalCurrentLiabilities: tcl, totalEquity: equity, totalDebt: debt, customerAdvances: advances, 'capital employed': employed },
       };
     },
   },
@@ -594,17 +624,11 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     compute: (ctx) => {
       const nd = netDebt(ctx.current);
       const ebitda = val(ctx.current, 'ebitda');
-      if (isNum(nd) && nd <= 0) {
-        return {
-          value: 0,
-          inputs: { 'net debt': nd, ebitda },
-          note: 'Net debt is zero or negative (net cash position), so leverage is reported as 0.0x.',
-        };
-      }
       const negativeEbitda = isNum(ebitda) && ebitda <= 0;
       return {
         value: negativeEbitda ? null : safeDiv(nd, ebitda),
         inputs: { 'net debt': nd, ebitda },
+        ...(isNum(nd) && nd < 0 ? { note: 'Negative leverage represents a net cash position; display it as net cash.' } : {}),
         ...(negativeEbitda ? { note: 'EBITDA is zero or negative, so this leverage multiple cannot be interpreted.' } : {}),
       };
     },
@@ -750,6 +774,23 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     },
   },
   {
+    key: 'tradeDso', label: 'Trade Receivables DSO', group: 'workingCapital', unit: 'days',
+    formula: '(Average Trade Receivables / Annualized Revenue) × 365',
+    meaning: 'Collection days using billed trade receivables only; excludes unbilled contract assets.',
+    higherIsBetter: false, absoluteChangeOnly: true,
+    compute: (ctx) => {
+      const rev = val(ctx.current, 'revenue');
+      const avg = avgBalance(ctx, 'tradeReceivables');
+      const basis = daysBasis(ctx);
+      const ratio = safeDivPositiveDenominator(avg.value, rev);
+      return {
+        value: isNum(ratio) ? ratio * basis.days : null,
+        inputs: { revenue: rev, ...avg.inputs },
+        ...(avg.note || basis.note ? { note: [avg.note, basis.note].filter(Boolean).join(' ') } : {}),
+      };
+    },
+  },
+  {
     key: 'dio', label: 'Days Inventory Outstanding (DIO)', group: 'workingCapital', unit: 'days',
     formula: '(Average Inventory / Annualized COGS) × 365',
     meaning: 'Average number of days inventory sits before it is sold.',
@@ -856,7 +897,7 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     meaning: 'Cash left after maintaining and growing the asset base. What is genuinely available to lenders and shareholders.',
     higherIsBetter: true,
     compute: (ctx) => ({
-      value: freeCashFlow(ctx.current),
+      value: freeCashFlow(ctx.current, ctx.metricConfig),
       inputs: { cfo: val(ctx.current, 'cfo'), capex: val(ctx.current, 'capex') },
     }),
   },
@@ -873,7 +914,7 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     meaning: 'Share of revenue converted into cash available after capital investment.',
     higherIsBetter: true, absoluteChangeOnly: true,
     compute: (ctx) => {
-      const fcf = freeCashFlow(ctx.current);
+      const fcf = freeCashFlow(ctx.current, ctx.metricConfig);
       const rev = val(ctx.current, 'revenue');
       return { value: toPercent(safeDivPositiveDenominator(fcf, rev)), inputs: { FCF: fcf, revenue: rev } };
     },
@@ -900,7 +941,7 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     meaning: 'Share of accounting profit that survives as cash after capital investment.',
     higherIsBetter: true, absoluteChangeOnly: true,
     compute: (ctx) => {
-      const fcf = freeCashFlow(ctx.current);
+      const fcf = freeCashFlow(ctx.current, ctx.metricConfig);
       const ni = val(ctx.current, 'netIncome');
       const nonPositive = isNum(ni) && ni <= 0;
       return {
@@ -983,16 +1024,20 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
   },
   {
     key: 'dividendPayout', label: 'Dividend Payout Ratio', group: 'perShare', unit: 'percent',
-    formula: 'Dividends Paid / Net Income',
+    formula: 'Declared dividends (DPS × weighted shares) / Net Income; cash payout shown as secondary',
     meaning: 'Share of profit distributed to shareholders rather than retained in the business.',
     absoluteChangeOnly: true,
     compute: (ctx) => {
       const div = val(ctx.current, 'dividendsPaid');
+      const dps = val(ctx.current, 'dividendPerShare');
+      const shares = val(ctx.current, 'sharesOutstanding');
       const ni = val(ctx.current, 'netIncome');
       const paid = isNum(div) ? Math.abs(div) : null;
+      const declared = isNum(dps) && isNum(shares) ? Math.abs(dps * shares) : null;
       return {
-        value: toPercent(safeDivPositiveDenominator(paid, ni)),
-        inputs: { dividendsPaid: div, netIncome: ni },
+        value: toPercent(safeDivPositiveDenominator(declared ?? paid, ni)),
+        inputs: { declaredDividends: declared, dividendPerShare: dps, sharesOutstanding: shares, dividendsPaid: div, netIncome: ni },
+        ...(isNum(declared) && isNum(paid) ? { note: `Headline uses declared payout (${declared.toFixed(2)}); cash payout was ${paid.toFixed(2)}.` } : {}),
       };
     },
   },
@@ -1005,6 +1050,76 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
       const price = val(ctx.current, 'sharePrice');
       const eps = val(ctx.current, 'basicEPS');
       return { value: safeDivPositiveDenominator(price, eps), inputs: { sharePrice: price, basicEPS: eps } };
+    },
+  },
+  {
+    key: 'pbRatio', label: 'Price / Book', group: 'valuation', unit: 'times',
+    formula: 'Market Capitalisation / Total Equity',
+    meaning: 'Market value paid for each unit of book equity.',
+    absoluteChangeOnly: true,
+    compute: (ctx) => {
+      const marketCap = val(ctx.current, 'marketCap');
+      const equity = val(ctx.current, 'totalEquity');
+      return { value: safeDivPositiveDenominator(marketCap, equity), inputs: { marketCap, totalEquity: equity } };
+    },
+  },
+  {
+    key: 'evToEbitda', label: 'EV / EBITDA', group: 'valuation', unit: 'times',
+    formula: '(Market Capitalisation + Net Debt) / EBITDA',
+    meaning: 'Enterprise value relative to operating earnings.',
+    absoluteChangeOnly: true,
+    compute: (ctx) => {
+      const marketCap = val(ctx.current, 'marketCap');
+      const nd = netDebt(ctx.current);
+      const ebitda = val(ctx.current, 'ebitda');
+      const ev = isNum(marketCap) && isNum(nd) ? marketCap + nd : null;
+      return { value: safeDivPositiveDenominator(ev, ebitda), inputs: { marketCap, netDebt: nd, enterpriseValue: ev, ebitda } };
+    },
+  },
+  {
+    key: 'evToSales', label: 'EV / Sales', group: 'valuation', unit: 'times',
+    formula: '(Market Capitalisation + Net Debt) / Revenue',
+    meaning: 'Enterprise value relative to revenue.',
+    absoluteChangeOnly: true,
+    compute: (ctx) => {
+      const marketCap = val(ctx.current, 'marketCap');
+      const nd = netDebt(ctx.current);
+      const revenue = val(ctx.current, 'revenue');
+      const ev = isNum(marketCap) && isNum(nd) ? marketCap + nd : null;
+      return { value: safeDivPositiveDenominator(ev, revenue), inputs: { marketCap, netDebt: nd, enterpriseValue: ev, revenue } };
+    },
+  },
+  {
+    key: 'dividendYield', label: 'Dividend Yield', group: 'valuation', unit: 'percent',
+    formula: 'Dividend Per Share / Share Price × 100',
+    meaning: 'Declared cash distribution relative to the period-end share price.',
+    absoluteChangeOnly: true,
+    compute: (ctx) => {
+      const dps = val(ctx.current, 'dividendPerShare');
+      const price = val(ctx.current, 'sharePrice');
+      return { value: toPercent(safeDivPositiveDenominator(dps, price)), inputs: { dividendPerShare: dps, sharePrice: price } };
+    },
+  },
+  {
+    key: 'fcfYield', label: 'FCF Yield', group: 'valuation', unit: 'percent',
+    formula: 'Free Cash Flow / Market Capitalisation × 100',
+    meaning: 'Free cash flow generated relative to the market value of equity.',
+    absoluteChangeOnly: true,
+    compute: (ctx) => {
+      const fcf = freeCashFlow(ctx.current, ctx.metricConfig);
+      const marketCap = val(ctx.current, 'marketCap');
+      return { value: toPercent(safeDivPositiveDenominator(fcf, marketCap)), inputs: { freeCashFlow: fcf, marketCap } };
+    },
+  },
+  {
+    key: 'earningsYield', label: 'Earnings Yield', group: 'valuation', unit: 'percent',
+    formula: 'Net Income / Market Capitalisation × 100',
+    meaning: 'Accounting earnings relative to the market value of equity.',
+    absoluteChangeOnly: true,
+    compute: (ctx) => {
+      const ni = val(ctx.current, 'netIncome');
+      const marketCap = val(ctx.current, 'marketCap');
+      return { value: toPercent(safeDivPositiveDenominator(ni, marketCap)), inputs: { netIncome: ni, marketCap } };
     },
   },
 ];

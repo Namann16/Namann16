@@ -1,4 +1,4 @@
-import type { MetricStatus, MetricUnit, MetricValue, Num, Trend } from '../types.js';
+import type { DenominatorBasis, MetricPolarity, MetricStatus, MetricUnit, MetricValue, Num, Trend } from '../types.js';
 import { isNum, round, stdDev } from './number.js';
 
 export interface MetricSpec {
@@ -8,6 +8,9 @@ export interface MetricSpec {
   formula: string;
   meaning?: string;
   higherIsBetter?: boolean;
+  polarity?: MetricPolarity;
+  saturationThreshold?: number;
+  denominatorBasis?: DenominatorBasis;
 }
 
 /**
@@ -22,7 +25,7 @@ export function makeMetric(
   period: string,
   value: Num,
   inputs: Record<string, Num>,
-  options: { status?: MetricStatus; note?: string } = {},
+  options: { status?: MetricStatus; note?: string; denominatorBasis?: DenominatorBasis } = {},
 ): MetricValue {
   let status: MetricStatus = options.status ?? 'ok';
   let note = options.note;
@@ -52,6 +55,11 @@ export function makeMetric(
     ...(note ? { note } : {}),
     ...(spec.meaning ? { meaning: spec.meaning } : {}),
     ...(spec.higherIsBetter !== undefined ? { higherIsBetter: spec.higherIsBetter } : {}),
+    ...(spec.polarity ? { polarity: spec.polarity } : {}),
+    ...(options.denominatorBasis ? { denominatorBasis: options.denominatorBasis } : {}),
+    ...(spec.saturationThreshold !== undefined && isNum(value) && Math.abs(value) > spec.saturationThreshold
+      ? { note: `${note ? `${note} ` : ''}Values above ${spec.saturationThreshold}x are not meaningful at this leverage level.` }
+      : {}),
   };
 }
 

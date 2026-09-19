@@ -8,6 +8,7 @@ import { buildExecutiveSummary, buildInsights } from './insights.js';
 import { assessDataQuality } from './dataQuality.js';
 import { comparePeers } from './peers.js';
 import { resolveThresholds } from './thresholds.js';
+import { detectAnomalies } from './anomalies.js';
 
 export const ENGINE_VERSION = '1.0.0';
 
@@ -26,6 +27,7 @@ export function analyze(dataset: CompanyDataset): AnalysisResult {
   const metrics = calculateMetrics(periods, dataset.company.industry, {
     reportingPeriod: dataset.company.reportingPeriod,
     annualizeInterimMetrics: dataset.company.annualizeInterimMetrics,
+    metricConfig: dataset.company.metricConfig,
   });
   const metricsByGroup = groupMetrics(metrics);
   const cagr = calculateCagr(periods, {
@@ -35,6 +37,7 @@ export function analyze(dataset: CompanyDataset): AnalysisResult {
   const duPont = analyzeDuPont(periods, metrics);
   const health = scoreHealth(metrics, thresholds);
   const dataQuality = assessDataQuality(periods, dataset.company, metrics, thresholds);
+  const anomalies = detectAnomalies({ ...dataset, periods }, metrics);
 
   const latestPeriod = periods.length ? periods[periods.length - 1]!.label : null;
 
@@ -80,6 +83,7 @@ export function analyze(dataset: CompanyDataset): AnalysisResult {
     insights,
     executiveSummary,
     dataQuality,
+    anomalies,
     peerComparison,
     thresholds,
     generatedAt: new Date().toISOString(),
