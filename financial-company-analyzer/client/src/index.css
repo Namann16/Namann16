@@ -813,7 +813,7 @@
   .draw-in {
     stroke-dasharray: var(--dash-length, 1000);
     stroke-dashoffset: var(--dash-length, 1000);
-    animation: draw 1200ms var(--ease-out) forwards;
+    animation: draw 3000ms var(--ease-out) forwards;
   }
   @keyframes draw {
     to { stroke-dashoffset: 0; }
