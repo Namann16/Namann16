@@ -274,6 +274,8 @@
     @apply surface relative overflow-hidden;
     animation: fadeUp 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
+  .feature-card:nth-child(2) { animation-delay: 80ms; }
+  .feature-card:nth-child(3) { animation-delay: 160ms; }
   .feature-card::before {
     content: '';
     @apply absolute inset-x-0 top-0 h-1 bg-accent-500;
@@ -296,5 +298,48 @@
   }
   .dark .chart-frame {
     background: linear-gradient(180deg, rgba(57, 135, 229, 0.08), transparent 72%);
+  }
+
+  .route-transition {
+    animation: fadeUp 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .dashboard-enter > * {
+    animation: fadeUp 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .dashboard-enter > *:nth-child(2) { animation-delay: 60ms; }
+  .dashboard-enter > *:nth-child(3) { animation-delay: 110ms; }
+  .dashboard-enter > *:nth-child(4) { animation-delay: 160ms; }
+  .dashboard-enter > *:nth-child(5) { animation-delay: 210ms; }
+  .dashboard-enter > *:nth-child(6) { animation-delay: 260ms; }
+  .dashboard-enter > *:nth-child(7) { animation-delay: 310ms; }
+  .dashboard-enter > *:nth-child(8) { animation-delay: 360ms; }
+
+  .dashboard-kpis > * {
+    animation: fadeUp 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .dashboard-kpis > *:nth-child(2) { animation-delay: 45ms; }
+  .dashboard-kpis > *:nth-child(3) { animation-delay: 90ms; }
+  .dashboard-kpis > *:nth-child(4) { animation-delay: 135ms; }
+  .dashboard-kpis > *:nth-child(5) { animation-delay: 180ms; }
+  .dashboard-kpis > *:nth-child(6) { animation-delay: 225ms; }
+  .dashboard-kpis > *:nth-child(7) { animation-delay: 270ms; }
+  .dashboard-kpis > *:nth-child(8) { animation-delay: 315ms; }
+  .dashboard-kpis > *:nth-child(9) { animation-delay: 360ms; }
+  .dashboard-kpis > *:nth-child(10) { animation-delay: 405ms; }
+  .dashboard-kpis > *:nth-child(11) { animation-delay: 450ms; }
+  .dashboard-kpis > *:nth-child(12) { animation-delay: 495ms; }
+
+  .chart-frame {
+    animation: fadeUp 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+    }
   }
 }

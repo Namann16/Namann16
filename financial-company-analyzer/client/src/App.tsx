@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Shell } from './components/layout/Shell';
 import { useWorkspace } from './state/WorkspaceContext';
 import { Banner, Card, EmptyState, Spinner } from './components/ui/primitives';
@@ -46,6 +46,7 @@ function RequiresCompany({ children }: { children: JSX.Element }) {
 
 export default function App() {
   const { meta, metaError, connecting, retryConnection } = useWorkspace();
+  const location = useLocation();
 
   if (metaError) {
     // The same browser error covers "host unreachable" and "origin refused by CORS", so the
@@ -108,25 +109,27 @@ export default function App() {
 
   return (
     <Shell>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/dashboard" element={guarded(<Dashboard />)} />
-        <Route path="/data" element={<DataInput />} />
-        <Route path="/statements" element={guarded(<Statements />)} />
-        <Route path="/ratios" element={guarded(<Ratios />)} />
-        <Route path="/profitability" element={guarded(<Profitability />)} />
-        <Route path="/liquidity-solvency" element={guarded(<LiquiditySolvency />)} />
-        <Route path="/working-capital" element={guarded(<WorkingCapital />)} />
-        <Route path="/cash-flow" element={guarded(<CashFlow />)} />
-        <Route path="/growth" element={guarded(<GrowthTrends />)} />
-        <Route path="/dupont" element={guarded(<DuPont />)} />
-        <Route path="/health" element={guarded(<FinancialHealth />)} />
-        <Route path="/insights" element={guarded(<Insights />)} />
-        <Route path="/peers" element={guarded(<Peers />)} />
-        <Route path="/report" element={guarded(<Report />)} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <div key={location.pathname} className="route-transition">
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/dashboard" element={guarded(<Dashboard />)} />
+          <Route path="/data" element={<DataInput />} />
+          <Route path="/statements" element={guarded(<Statements />)} />
+          <Route path="/ratios" element={guarded(<Ratios />)} />
+          <Route path="/profitability" element={guarded(<Profitability />)} />
+          <Route path="/liquidity-solvency" element={guarded(<LiquiditySolvency />)} />
+          <Route path="/working-capital" element={guarded(<WorkingCapital />)} />
+          <Route path="/cash-flow" element={guarded(<CashFlow />)} />
+          <Route path="/growth" element={guarded(<GrowthTrends />)} />
+          <Route path="/dupont" element={guarded(<DuPont />)} />
+          <Route path="/health" element={guarded(<FinancialHealth />)} />
+          <Route path="/insights" element={guarded(<Insights />)} />
+          <Route path="/peers" element={guarded(<Peers />)} />
+          <Route path="/report" element={guarded(<Report />)} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
     </Shell>
   );
 }
