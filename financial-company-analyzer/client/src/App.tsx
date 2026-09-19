@@ -81,6 +81,11 @@ export default function App() {
   const [showEntrySplash, setShowEntrySplash] = useState(true);
   const finishEntrySplash = () => setShowEntrySplash(false);
 
+  useEffect(() => {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, left: 0, behavior: reduced ? 'auto' : 'smooth' });
+  }, [location.pathname]);
+
   let appContent: JSX.Element;
   if (metaError) {
     // The same browser error covers "host unreachable" and "origin refused by CORS", so the
