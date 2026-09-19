@@ -1,8 +1,8 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { unitsLabel } from '@fca/core';
 import { useWorkspace } from '../../state/WorkspaceContext';
-import { Badge, Banner, Spinner } from '../ui/primitives';
+import { Badge, Banner } from '../ui/primitives';
 
 /** Sidebar navigation, grouped so the sections read as one analytical workflow. */
 const NAV_GROUPS: { label: string; items: { to: string; label: string; needsCompany?: boolean }[] }[] = [
@@ -39,6 +39,23 @@ const NAV_GROUPS: { label: string; items: { to: string; label: string; needsComp
   },
 ];
 
+function AnalysisProgress() {
+  const [step, setStep] = useState(0);
+  const steps = ['Reading inputs', 'Calculating metrics', 'Checking quality', 'Building insights'];
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setStep((current) => Math.min(current + 1, steps.length - 1)), 420);
+    return () => window.clearInterval(timer);
+  }, [steps.length]);
+
+  return (
+    <span className="analysis-progress hidden items-center gap-2 sm:flex" role="status" aria-live="polite">
+      <span className="analysis-progress-dot" aria-hidden="true" />
+      <span>{steps[step]}…</span>
+    </span>
+  );
+}
+
 function NavItem({ to, label, disabled, dirty }: { to: string; label: string; disabled: boolean; dirty: boolean }) {
   if (disabled) {
     return (
@@ -51,6 +68,7 @@ function NavItem({ to, label, disabled, dirty }: { to: string; label: string; di
       </span>
     );
   }
+
   return (
     <NavLink
       to={to}
@@ -178,7 +196,7 @@ export function Shell({ children }: { children: ReactNode }) {
             )}
 
             <div className="flex shrink-0 items-center gap-1.5">
-              {analysing && <span className="hidden sm:block"><Spinner label="Recalculating" /></span>}
+              {analysing && <AnalysisProgress />}
               {analysis && analysis.redFlags.length > 0 && (
                 <NavLink to="/insights" aria-label={`${analysis.redFlags.length} red flags`}>
                   <Badge tone="negative">

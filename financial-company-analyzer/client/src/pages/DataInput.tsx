@@ -41,6 +41,7 @@ export default function DataInput() {
   const [pasteResult, setPasteResult] = useState<{ filled: number; failures: string[] } | null>(null);
   /** Bumped after a paste so the uncontrolled cell inputs remount with their new values. */
   const [gridVersion, setGridVersion] = useState(0);
+  const [changedCells, setChangedCells] = useState<Record<string, boolean>>({});
   const [importState, setImportState] = useState<ParseResponse | null>(null);
   const [importDecisions, setImportDecisions] = useState<Record<string, string | null>>({});
   const [importPeriods, setImportPeriods] = useState<string[]>([]);
@@ -181,6 +182,15 @@ export default function DataInput() {
       return next;
     });
     if (error) return;
+
+    setChangedCells((current) => ({ ...current, [errorKey]: true }));
+    window.setTimeout(() => {
+      setChangedCells((current) => {
+        const next = { ...current };
+        delete next[errorKey];
+        return next;
+      });
+    }, 520);
 
     setPeriodsLocal(
       periods.map((period) => {
@@ -450,7 +460,7 @@ export default function DataInput() {
                                   key={`${item.key}-${period.label}-${gridVersion}`}
                                   data-grid-row={rowIndex}
                                   data-grid-col={colIndex}
-                                  className={`cell-input ${derived && typeof entered !== 'number' ? 'pr-4' : ''} ${
+                                  className={`cell-input ${changedCells[errorKey] ? 'value-changed' : ''} ${derived && typeof entered !== 'number' ? 'pr-4' : ''} ${
                                     cellErrors[errorKey] ? 'border-negative-400 bg-negative-50' : ''
                                   }`}
                                   defaultValue={typeof entered === 'number' ? String(entered) : ''}
