@@ -473,16 +473,19 @@
     .fin-table tbody th:first-child {
       position: sticky;
       left: 0;
-      z-index: 10;
-      background: var(--surface);
+      isolation: isolate;
+      background: var(--surface) !important;
       width: 9.25rem !important;
       min-width: 9.25rem !important;
       max-width: 9.25rem !important;
       box-sizing: border-box;
     }
+    .fin-table tbody th:first-child {
+      z-index: 40;
+    }
     .fin-table thead th:first-child {
-      z-index: 30;
-      background: var(--material);
+      z-index: 50;
+      background: var(--surface) !important;
     }
     .fin-table thead th:first-child::after,
     .fin-table tbody th:first-child::after {
