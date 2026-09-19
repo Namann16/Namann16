@@ -429,6 +429,9 @@
   }
 
   .table-scroll { @apply overflow-x-auto; scrollbar-width: thin; }
+  .statement-label-col {
+    min-width: 17.5rem;
+  }
 
   .fin-table tr.row-section td {
     @apply text-left text-footnote font-semibold py-[6px];
@@ -442,6 +445,29 @@
     @apply font-semibold;
     border-top: 0.5px solid var(--separator-opaque);
     background: var(--fill-quaternary);
+  }
+
+  @media (max-width: 640px) {
+    .fin-table {
+      font-size: 0.75rem;
+    }
+    .fin-table th,
+    .fin-table td {
+      @apply px-2 py-[6px];
+    }
+    .fin-table thead th {
+      font-size: 0.6875rem;
+    }
+    .statement-label-col {
+      min-width: 9.25rem;
+      width: 9.25rem;
+      max-width: 9.25rem;
+    }
+    .fin-table.sticky-labels tbody th {
+      max-width: 9.25rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   }
 
   /* ---------------------------------------------------------------- Controls */

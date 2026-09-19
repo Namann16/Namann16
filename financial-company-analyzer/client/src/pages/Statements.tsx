@@ -177,7 +177,7 @@ export default function Statements() {
             <table className="fin-table sticky-labels">
               <thead>
                 <tr>
-                  <th className="text-left" style={{ minWidth: 280 }}>Line item</th>
+                  <th className="statement-label-col text-left">Line item</th>
                   {periods.map((period) => <th key={period.label} style={{ minWidth: 110 }}>{period.label}</th>)}
                 </tr>
               </thead>
