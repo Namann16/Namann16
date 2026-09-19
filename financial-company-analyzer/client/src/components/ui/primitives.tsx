@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 type Tone = 'positive' | 'negative' | 'neutral' | 'caution' | 'accent';
@@ -166,8 +167,31 @@ export function Spinner({ label = 'Loading' }: { label?: string }) {
 /** Info tooltip used for ratio explanations. Opens on hover and on keyboard focus. */
 export function InfoTip({ label, children }: { label?: string; children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
   const id = useId();
   const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const updatePosition = () => {
+      const trigger = ref.current?.getBoundingClientRect();
+      if (!trigger) return;
+      const width = Math.min(288, window.innerWidth - 16);
+      setPosition({
+        top: trigger.bottom + 8,
+        left: Math.max(8, Math.min(trigger.left + trigger.width / 2 - width / 2, window.innerWidth - width - 8)),
+      });
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -192,14 +216,16 @@ export function InfoTip({ label, children }: { label?: string; children: ReactNo
       >
         i
       </button>
-      {open && (
+      {open && typeof document !== 'undefined' && createPortal(
         <span
           id={id}
           role="tooltip"
-          className="material-thick absolute left-1/2 top-5 z-50 w-72 -translate-x-1/2 rounded-xl p-3 text-left text-subheadline font-normal leading-relaxed shadow-sheet"
+          className="pointer-events-none fixed z-[1000] w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-ink-200 bg-white p-3 text-left text-subheadline font-normal leading-relaxed text-ink-700 shadow-sheet dark:border-ink-700 dark:bg-ink-800 dark:text-ink-200"
+          style={{ top: position.top, left: position.left }}
         >
           {children}
-        </span>
+        </span>,
+        document.body,
       )}
     </span>
   );
