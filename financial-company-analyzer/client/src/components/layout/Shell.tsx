@@ -156,6 +156,13 @@ export function Shell({ children }: { children: ReactNode }) {
     const main = mainRef.current;
     if (!main) return;
 
+    const revealable = () => main.querySelectorAll<HTMLElement>('.stagger > *:not(.scroll-reveal)');
+    const revealAll = () => revealable().forEach((element) => element.classList.add('scroll-revealed'));
+    if (!('IntersectionObserver' in window)) {
+      revealAll();
+      return;
+    }
+
     const revealObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -164,11 +171,11 @@ export function Shell({ children }: { children: ReactNode }) {
           revealObserver.unobserve(entry.target);
         });
       },
-      { threshold: 0.08, rootMargin: '0px 0px -5% 0px' },
+      { threshold: 0.01, rootMargin: '0px 0px 0px 0px' },
     );
 
     const observeSections = () => {
-      main.querySelectorAll<HTMLElement>('.stagger > *:not(.scroll-reveal)').forEach((element) => {
+      revealable().forEach((element) => {
         element.classList.add('scroll-reveal');
         revealObserver.observe(element);
       });

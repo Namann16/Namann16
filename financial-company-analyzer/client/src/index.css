@@ -750,15 +750,37 @@
    * keeping long pages quiet until the reader reaches each section.
    */
   .scroll-reveal {
+    position: relative;
     opacity: 0;
-    transform: translateY(18px);
+    transform: translateY(10px) scale(0.985);
+    filter: blur(7px);
   }
   .scroll-revealed {
-    animation: scroll-fade-up 520ms var(--ease-out) both;
+    animation: scroll-dust-gather 360ms var(--ease-out) both;
   }
-  @keyframes scroll-fade-up {
-    from { opacity: 0; transform: translateY(18px); }
-    to { opacity: 1; transform: translateY(0); }
+  .scroll-revealed::after {
+    content: '';
+    position: absolute;
+    inset: -12px;
+    z-index: 5;
+    pointer-events: none;
+    opacity: 0;
+    background:
+      radial-gradient(circle at 12% 32%, rgba(10, 132, 255, 0.5) 0 1px, transparent 2px),
+      radial-gradient(circle at 26% 72%, rgba(10, 132, 255, 0.42) 0 1px, transparent 2px),
+      radial-gradient(circle at 48% 18%, rgba(10, 132, 255, 0.38) 0 1px, transparent 2px),
+      radial-gradient(circle at 71% 64%, rgba(10, 132, 255, 0.42) 0 1px, transparent 2px),
+      radial-gradient(circle at 88% 28%, rgba(10, 132, 255, 0.34) 0 1px, transparent 2px);
+    animation: dust-settle 360ms var(--ease-out) both;
+  }
+  @keyframes scroll-dust-gather {
+    0% { opacity: 0; transform: translateY(10px) scale(0.985); filter: blur(7px); }
+    58% { opacity: 0.82; transform: translateY(1px) scale(0.998); filter: blur(1.5px); }
+    100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  }
+  @keyframes dust-settle {
+    0% { opacity: 0.85; transform: scale(1.08); filter: blur(0); }
+    100% { opacity: 0; transform: scale(0.96); filter: blur(3px); }
   }
 
   @keyframes rise-in {
@@ -918,7 +940,8 @@
 
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
-    .scroll-reveal { opacity: 1; transform: none; }
+    .scroll-reveal { opacity: 1; transform: none; filter: none; }
+    .scroll-revealed::after { display: none; }
     *, *::before, *::after {
       animation-duration: 1ms !important;
       animation-iteration-count: 1 !important;
