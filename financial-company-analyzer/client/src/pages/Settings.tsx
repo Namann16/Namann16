@@ -102,7 +102,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="stagger space-y-5">
       <PageHeader
         title="Settings"
         description="Thresholds are judgement calls, not facts. Every one of them is shown here with what it controls, and every flag records the threshold that triggered it so you can see exactly why a statement was made."

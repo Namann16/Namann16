@@ -38,7 +38,7 @@ export default function Report() {
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="stagger space-y-5">
       <PageHeader
         title="Report"
         description="Export the analysis for circulation. The PDF report opens in a new tab formatted for print — use your browser's print dialog and choose “Save as PDF”. Producing it this way keeps the text selectable and searchable rather than rasterised."
