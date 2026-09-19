@@ -35,7 +35,7 @@ export default function Profitability() {
   const insights = analysis.insights.filter((i) => i.category === 'profitability' || i.category === 'returns');
 
   return (
-    <div className="space-y-5">
+    <div className="stagger space-y-5">
       <PageHeader
         title="Profitability"
         description="Margins measure how much of each unit of revenue survives at each level of the income statement. Returns measure what the capital tied up in the business earns. Read them together: a high margin on a very large asset base can still be a poor return."

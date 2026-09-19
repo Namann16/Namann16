@@ -52,7 +52,7 @@ export default function DuPont() {
     : [];
 
   return (
-    <div className="space-y-5">
+    <div className="stagger space-y-5">
       <PageHeader
         title="DuPont Analysis"
         description="Return on equity is decomposed into the three things that can move it: how much profit each sale generates, how hard the asset base works, and how much of that asset base is funded by borrowing rather than shareholders. Two companies can report identical ROE for entirely different reasons."

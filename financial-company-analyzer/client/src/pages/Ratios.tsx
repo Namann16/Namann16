@@ -51,7 +51,7 @@ export default function Ratios() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="stagger space-y-4">
       <PageHeader
         title="Ratio Analysis"
         description="Every ratio the engine calculates, with its formula, what it measures, and how it has moved. Use the info button on any metric for its definition, or “View” to see the exact inputs behind the latest figure."

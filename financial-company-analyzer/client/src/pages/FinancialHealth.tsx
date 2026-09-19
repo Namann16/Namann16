@@ -40,7 +40,7 @@ export default function FinancialHealth() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="stagger space-y-5">
       <PageHeader
         title="Financial Health"
         description="Each pillar is scored from named checks that map a metric onto a configurable band. Every contributing factor is shown, so no score is a black box, and every threshold can be changed in Settings."

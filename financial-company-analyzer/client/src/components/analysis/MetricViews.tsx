@@ -6,6 +6,7 @@ import {
   changeTone, fmtCtx, formatChange, formatMetric, SENTIMENT_TONE, SEVERITY_LABEL, TREND_LABEL, TREND_TONE,
 } from '../../lib/display';
 import { Badge, Card, EmptyState, InfoTip, Modal } from '../ui/primitives';
+import { useAnimatedNumber, useChangedFlash } from '../../lib/motion';
 import { Sparkline } from '../charts/Charts';
 
 const TONE_TEXT = {
@@ -39,6 +40,8 @@ export function KpiCard({
   const benchmarkTone = available && benchmark
     ? ((latest.value as number) >= benchmark.value) === (benchmark.higherIsBetter ?? true) ? 'positive' : 'negative'
     : 'neutral';
+  const rolling = useAnimatedNumber(available ? (latest.value as number) : null);
+  const flash = useChangedFlash(available ? latest.value : null);
 
   return (
     <div
@@ -57,8 +60,21 @@ export function KpiCard({
         )}
       </div>
 
-      <p className={`mt-1.5 ${available ? 'kpi-value' : 'kpi-value-muted'}`}>
-        {available ? formatMetric(latest.value, latest.unit, ctx) : 'n/a'}
+      {/*
+        The figure eases to its new value when the analysis is recalculated, which answers
+        "what moved?" without the reader having to diff two screens.
+
+        The intermediate frames are a visual transition and never data: the accessible name always
+        carries the final figure, so assistive technology reads the real number and never an
+        in-flight one. With Reduce Motion on, the hook returns the target immediately.
+      */}
+      <p
+        className={`mt-1.5 rounded-md ${available ? 'kpi-value' : 'kpi-value-muted'} ${flash ? 'value-changed' : ''}`}
+        aria-label={available ? `${label}: ${formatMetric(latest.value, latest.unit, ctx)}` : `${label}: not available`}
+      >
+        <span aria-hidden="true">
+          {available ? formatMetric(rolling ?? latest.value, latest.unit, ctx) : 'n/a'}
+        </span>
       </p>
 
       <div className="mt-1 flex items-baseline gap-1 text-2xs">

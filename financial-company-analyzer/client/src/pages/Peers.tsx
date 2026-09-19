@@ -69,7 +69,7 @@ export default function Peers() {
   const hasPeerData = rows.some((r) => r.peerValues.some((p) => p.value !== null));
 
   return (
-    <div className="space-y-5">
+    <div className="stagger space-y-5">
       <PageHeader
         title="Peer Comparison"
         description="Benchmark the company against peers you supply. Peer figures are entered by you and are echoed as given — they are not calculated by the engine and are labelled accordingly, so the two are never confused."

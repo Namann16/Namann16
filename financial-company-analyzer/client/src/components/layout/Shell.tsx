@@ -55,6 +55,9 @@ function NavItem({ to, label, disabled, dirty }: { to: string; label: string; di
     <NavLink
       to={to}
       end={to === '/'}
+      // Cross-fades the outgoing page against the incoming one where the browser supports it.
+      // Everything still works without it, so nothing depends on the API being present.
+      viewTransition
       onClick={(event) => {
         if (dirty && !window.confirm('You have unsaved financial data. Leave without saving?')) {
           event.preventDefault();
@@ -86,6 +89,7 @@ export function Shell({ children }: { children: ReactNode }) {
       */}
       <aside
         className={`${mobileOpen ? 'block' : 'hidden'} material w-full shrink-0 hairline lg:sticky lg:top-0 lg:block lg:h-screen lg:w-[15rem] lg:border-b-0 lg:border-r-[0.5px] lg:border-r-[color:var(--separator)]`}
+        style={{ viewTransitionName: 'chrome' }}
       >
         <div className="flex h-full flex-col">
           <button
@@ -139,7 +143,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="material hairline sticky top-0 z-30">
+        <header className="material hairline sticky top-0 z-30" style={{ viewTransitionName: 'toolbar' }}>
           <div className="flex items-center gap-2 px-4 py-2.5 lg:px-6">
             <button
               type="button"
@@ -205,7 +209,8 @@ export function Shell({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <main className="flex-1 px-4 py-5 lg:px-6 lg:py-7">{children}</main>
+        {/* Only the content carries the `page` name, so the chrome stays put while it changes. */}
+        <main className="flex-1 px-4 py-5 lg:px-6 lg:py-7" style={{ viewTransitionName: 'page' }}>{children}</main>
 
         <footer className="hairline-t px-4 py-3 text-caption-2 leading-relaxed text-ink-500 lg:px-6">
           All metrics are calculated deterministically from the data you entered. Figures shown as “n/a” could not be calculated and are not zero.
