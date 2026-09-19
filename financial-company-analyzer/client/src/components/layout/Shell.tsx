@@ -166,12 +166,10 @@ export function Shell({ children }: { children: ReactNode }) {
     const revealObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          entry.target.classList.add('scroll-revealed');
-          revealObserver.unobserve(entry.target);
+          entry.target.classList.toggle('scroll-revealed', entry.isIntersecting);
         });
       },
-      { threshold: 0.01, rootMargin: '0px 0px 0px 0px' },
+      { threshold: 0.08, rootMargin: '0px 0px -4% 0px' },
     );
 
     const observeSections = () => {
