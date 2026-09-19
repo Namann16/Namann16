@@ -77,14 +77,14 @@ export const SYNONYMS: Record<string, string[]> = {
   changeInPayables: ['change in payables', 'increase decrease in payables', 'changes in trade payables', 'movement in creditors'],
   changeInOtherWorkingCapital: ['change in other working capital', 'other working capital changes', 'changes in other current assets and liabilities'],
   otherNonCashExpenses: ['other non cash expenses', 'non cash adjustments', 'other non cash items'],
-  otherOperatingAdjustments: ['other operating adjustments', 'other operating activities', 'taxes paid'],
+  otherOperatingAdjustments: ['other operating adjustments', 'other operating activities'],
   cfo: ['cfo', 'cash flow from operations', 'net cash from operating activities', 'operating cash flow', 'cash generated from operations', 'net cash flow from operating activities', 'cash from operations'],
   capex: ['capex', 'capital expenditure', 'additions to fixed assets', 'purchase of fixed assets', 'capital expenditures'],
   purchaseOfPPE: ['purchase of ppe', 'purchase of property plant and equipment', 'acquisition of fixed assets'],
   saleOfPPE: ['sale of ppe', 'proceeds from sale of fixed assets', 'disposal of fixed assets'],
   purchaseOfInvestments: ['purchase of investments', 'investments made'],
   saleOfInvestments: ['sale of investments', 'proceeds from sale of investments', 'redemption of investments'],
-  otherInvestingCashFlow: ['other investing activities', 'other investing cash flow', 'interest received'],
+  otherInvestingCashFlow: ['other investing activities', 'other investing cash flow'],
   cfi: ['cfi', 'cash flow from investing', 'net cash used in investing activities', 'investing cash flow', 'net cash flow from investing activities'],
   debtIssued: ['debt issued', 'proceeds from borrowings', 'borrowings raised', 'proceeds from long term borrowings'],
   debtRepaid: ['debt repaid', 'repayment of borrowings', 'repayment of long term borrowings'],
@@ -105,6 +105,55 @@ export const SYNONYMS: Record<string, string[]> = {
   sharePrice: ['share price', 'stock price', 'market price', 'closing price', 'price per share'],
   marketCap: ['market capitalisation', 'market capitalization', 'market cap', 'mcap'],
   dividendPerShare: ['dividend per share', 'dps'],
+
+  // --- Template v2 rows (specification Part C) -------------------------------------------------
+  // These distinguish liabilities and assets the v1 template could not tell apart. Without a
+  // synonym each one could only be typed in by hand, so an imported workbook never populated
+  // them and the explanation tests that depend on them could never pass.
+  tradeReceivables: [
+    'trade receivables billed', 'billed receivables', 'trade receivables billed only',
+    'trade receivables excluding unbilled', 'billed trade receivables', 'trade receivables gross of unbilled',
+  ],
+  unbilledRevenue: [
+    'unbilled revenue', 'contract assets', 'unbilled receivables', 'unbilled debtors',
+    'revenue accrued but not billed', 'accrued revenue', 'amounts due from customers under contracts',
+  ],
+  capitalWorkInProgress: ['capital work in progress', 'cwip', 'capital work in progress cwip', 'assets under construction'],
+  intangibleAssetsUnderDevelopment: [
+    'intangible assets under development', 'intangibles under development',
+    'intangible asset under development', 'capitalised development expenditure',
+    'product development in progress',
+  ],
+  customerAdvancesCurrent: [
+    'customer advances current', 'advances from customers current', 'contract liabilities current',
+    'advance from customers current', 'customer advances short term', 'advances received from customers current',
+  ],
+  customerAdvancesNonCurrent: [
+    'customer advances non current', 'advances from customers non current', 'contract liabilities non current',
+    'advance from customers non current', 'customer advances long term', 'advances received from customers non current',
+  ],
+  leaseLiabilitiesCurrent: ['lease liabilities current', 'lease liability current', 'current lease liabilities', 'finance lease obligations current'],
+  leaseLiabilitiesNonCurrent: ['lease liabilities non current', 'lease liability non current', 'non current lease liabilities', 'finance lease obligations non current'],
+  purchaseOfIntangibles: [
+    'purchase of intangibles', 'purchase of intangible assets', 'additions to intangible assets',
+    'acquisition of intangible assets', 'payments for intangible assets',
+  ],
+  purchaseOfIntangibleDevelopment: [
+    'purchase of intangible assets under development', 'additions to intangible assets under development',
+    'expenditure on intangible assets under development', 'capitalised development spend',
+  ],
+  incomeTaxesPaid: ['income taxes paid', 'taxes paid', 'income tax paid', 'direct taxes paid', 'tax paid net of refunds'],
+  interestReceived: ['interest received', 'interest income received', 'interest and dividend received'],
+  dividendsDeclared: [
+    'dividends declared', 'dividend declared', 'declared dividend', 'proposed dividend',
+    'final and interim dividend declared', 'total dividend declared',
+  ],
+
+  // --- Industry-specific lines ----------------------------------------------------------------
+  interestIncome: ['interest income', 'interest earned', 'income from interest', 'gross interest income'],
+  netInterestIncome: ['net interest income', 'nii', 'net interest revenue'],
+  interestEarningAssets: ['interest earning assets', 'average interest earning assets', 'interest bearing assets', 'earning assets'],
+  sameStoreRevenue: ['same store revenue', 'comparable store revenue', 'like for like revenue', 'lfl revenue', 'same store sales'],
 };
 
 /**

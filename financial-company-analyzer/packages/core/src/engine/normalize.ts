@@ -98,6 +98,28 @@ export const DERIVATION_RULES: DerivationRule[] = [
   },
 
   /* ---------------- Balance sheet ---------------- */
+  // Trade receivables and unbilled revenue split the single v1 receivables line. Whichever two
+  // of the three a workbook supplies, the third follows — which is what lets DSO be reported on
+  // a trade-only basis (specification A/C1, explanation E2) for a v1-shaped import.
+  {
+    target: 'tradeReceivables',
+    formula: 'Accounts Receivable − Unbilled Revenue',
+    compute: (v) => subtract(g(v, 'accountsReceivable'), g(v, 'unbilledRevenue')),
+  },
+  {
+    target: 'unbilledRevenue',
+    formula: 'Accounts Receivable − Trade Receivables',
+    compute: (v) => subtract(g(v, 'accountsReceivable'), g(v, 'tradeReceivables')),
+  },
+  {
+    target: 'accountsReceivable',
+    formula: 'Trade Receivables + Unbilled Revenue',
+    compute: (v) => {
+      const trade = g(v, 'tradeReceivables');
+      const unbilled = g(v, 'unbilledRevenue');
+      return isNum(trade) && isNum(unbilled) ? trade + unbilled : null;
+    },
+  },
   {
     target: 'totalCurrentAssets',
     formula: 'Cash + Short-Term Investments + Receivables + Inventory + Other Current Assets',

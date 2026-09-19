@@ -41,6 +41,10 @@ function toPeriods(input: z.infer<typeof replacePeriodsSchema>['periods']): Fina
     endDate: p.endDate ?? null,
     order: p.order,
     isPartial: p.isPartial ?? false,
+    // Specification C4. These flags were validated and then dropped here, so a period marked
+    // unusual never reached the engine and the "prior period was exceptional" test could not pass.
+    ...(p.unusual ? { unusual: true } : {}),
+    ...(p.unusualReason ? { unusualReason: p.unusualReason } : {}),
     values: p.values,
     // Anything arriving from a client is treated as entered data; the engine re-derives the rest,
     // so a client cannot pass off a made-up figure as an engine calculation.
@@ -63,12 +67,13 @@ companiesRouter.post(
   '/',
   asyncHandler(async (req, res) => {
     const body = createCompanySchema.parse(req.body);
-    const { periods, peers, thresholds, ...profile } = body;
+    const { periods, peers, thresholds, businessContext, ...profile } = body;
     const created = await createCompany({
       company: profile as CompanyDataset['company'],
       periods: toPeriods(periods),
       peers: toPeers(peers),
       ...(thresholds ? { thresholds } : {}),
+      ...(businessContext ? { businessContext } : {}),
     });
     res.status(201).json({ company: created });
   }),
@@ -106,12 +111,13 @@ companiesRouter.patch(
     const existing = await getCompany(id);
     if (!existing) throw notFound('No analysis exists with that identifier.');
 
-    const { periods, peers, thresholds, ...profile } = body;
+    const { periods, peers, thresholds, businessContext, ...profile } = body;
     const updated = await updateCompany(id, {
       company: { ...existing.company, ...profile } as CompanyDataset['company'],
       ...(periods ? { periods: toPeriods(periods) } : {}),
       ...(peers ? { peers: toPeers(peers) } : {}),
       ...(thresholds ? { thresholds } : {}),
+      ...(businessContext ? { businessContext } : {}),
     });
     res.json({ company: updated });
   }),

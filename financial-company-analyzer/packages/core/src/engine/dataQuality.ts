@@ -118,51 +118,6 @@ export function assessDataQuality(
       continue;
     }
 
-    /* ---------- Roll-forward and plausibility checks ---------- */
-    for (let i = 1; i < periods.length; i += 1) {
-      const period = periods[i]!;
-      const prior = periods[i - 1]!;
-      const rollForwards: [string, string, string][] = [
-        ['inventory', 'changeInInventory', 'Inventory'],
-        ['accountsReceivable', 'changeInReceivables', 'Receivables'],
-        ['accountsPayable', 'changeInPayables', 'Payables'],
-      ];
-      for (const [balanceKey, cashFlowKey, label] of rollForwards) {
-        const opening = val(prior, balanceKey);
-        const closing = val(period, balanceKey);
-        const movement = val(period, cashFlowKey);
-        if (!isNum(opening) || !isNum(closing) || !isNum(movement)) continue;
-        const expected = closing - opening;
-        const gap = expected + movement;
-        const tolerance = Math.max(Math.abs(closing) * 0.05, thresholds.balanceToleranceAbsolute);
-        if (Math.abs(gap) > tolerance) {
-          checks.push({
-            id: `rollforward.${balanceKey}.${period.label}`,
-            label: `${label} roll-forward — ${period.label}`,
-            status: 'fail',
-            period: period.label,
-            detail: `${label} changed by ${formatCurrency(expected, ctx)} but the cash-flow movement was ${formatCurrency(movement, ctx)}; the ${formatCurrency(gap, ctx)} gap indicates a mapping or omitted-flow issue.`,
-          });
-        }
-      }
-    }
-    for (const period of periods) {
-      const revenue = val(period, 'revenue');
-      const receivables = val(period, 'accountsReceivable');
-      const cogs = val(period, 'cogs');
-      const inventory = val(period, 'inventory');
-      if (isNum(revenue) && isNum(receivables) && receivables > revenue) {
-        checks.push({ id: `plausibility.receivables.${period.label}`, label: `Receivables exceed revenue — ${period.label}`, status: 'warn', period: period.label, detail: `Accounts receivable of ${formatCurrency(receivables, ctx)} exceeds revenue of ${formatCurrency(revenue, ctx)}. Check whether unbilled revenue has been combined with trade receivables.` });
-      }
-      if (isNum(cogs) && isNum(inventory) && cogs > 0 && inventory > cogs * 3) {
-        checks.push({ id: `plausibility.inventory.${period.label}`, label: `Inventory exceeds COGS plausibility bound — ${period.label}`, status: 'warn', period: period.label, detail: `Inventory of ${formatCurrency(inventory, ctx)} is more than three times COGS of ${formatCurrency(cogs, ctx)}. Confirm units and source mapping.` });
-      }
-      const ebitda = val(period, 'ebitda');
-      if (isNum(revenue) && isNum(ebitda) && (ebitda < -revenue || ebitda > revenue)) {
-        checks.push({ id: `plausibility.margin.${period.label}`, label: `Margin outside plausibility bounds — ${period.label}`, status: 'warn', period: period.label, detail: `EBITDA margin is outside −100% to +100% (${formatMetric(ebitda / revenue * 100, 'percent', ctx)}). Confirm the imported units.` });
-      }
-    }
-
     const fx = val(period, 'fxEffectOnCash') ?? 0;
     const netChange = cfo + cfi + cff + fx;
     const priorCash = i > 0 ? val(periods[i - 1]!, 'cash') : val(period, 'openingCash');
@@ -201,6 +156,66 @@ export function assessDataQuality(
           { label: 'Difference', display: formatCurrency(gap, ctx), value: gap, unit: 'currency' },
         ],
       },
+    });
+  }
+
+  /* ---------- Roll-forward and plausibility checks ---------- */
+  for (let i = 1; i < periods.length; i += 1) {
+    const period = periods[i]!;
+    const prior = periods[i - 1]!;
+    const rollForwards: [string, string, string][] = [
+      ['inventory', 'changeInInventory', 'Inventory'],
+      ['accountsReceivable', 'changeInReceivables', 'Receivables'],
+      ['accountsPayable', 'changeInPayables', 'Payables'],
+    ];
+    for (const [balanceKey, cashFlowKey, label] of rollForwards) {
+      const opening = val(prior, balanceKey);
+      const closing = val(period, balanceKey);
+      const movement = val(period, cashFlowKey);
+      if (!isNum(opening) || !isNum(closing) || !isNum(movement)) continue;
+      const expected = closing - opening;
+      const gap = expected + movement;
+      const tolerance = Math.max(Math.abs(closing) * 0.05, thresholds.balanceToleranceAbsolute);
+      if (Math.abs(gap) > tolerance) {
+        checks.push({
+          id: `rollforward.${balanceKey}.${period.label}`,
+          label: `${label} roll-forward — ${period.label}`,
+          status: 'fail',
+          period: period.label,
+          detail: `${label} changed by ${formatCurrency(expected, ctx)} but the cash-flow movement was ${formatCurrency(movement, ctx)}; the ${formatCurrency(gap, ctx)} gap indicates a mapping or omitted-flow issue.`,
+        });
+      }
+    }
+  }
+  for (const period of periods) {
+    const revenue = val(period, 'revenue');
+    const receivables = val(period, 'accountsReceivable');
+    const cogs = val(period, 'cogs');
+    const inventory = val(period, 'inventory');
+    if (isNum(revenue) && isNum(receivables) && receivables > revenue) {
+      checks.push({ id: `plausibility.receivables.${period.label}`, label: `Receivables exceed revenue — ${period.label}`, status: 'warn', period: period.label, detail: `Accounts receivable of ${formatCurrency(receivables, ctx)} exceeds revenue of ${formatCurrency(revenue, ctx)}. Check whether unbilled revenue has been combined with trade receivables.` });
+    }
+    if (isNum(cogs) && isNum(inventory) && cogs > 0 && inventory > cogs * 3) {
+      checks.push({ id: `plausibility.inventory.${period.label}`, label: `Inventory exceeds COGS plausibility bound — ${period.label}`, status: 'warn', period: period.label, detail: `Inventory of ${formatCurrency(inventory, ctx)} is more than three times COGS of ${formatCurrency(cogs, ctx)}. Confirm units and source mapping.` });
+    }
+    const ebitda = val(period, 'ebitda');
+    if (isNum(revenue) && isNum(ebitda) && (ebitda < -revenue || ebitda > revenue)) {
+      checks.push({ id: `plausibility.margin.${period.label}`, label: `Margin outside plausibility bounds — ${period.label}`, status: 'warn', period: period.label, detail: `EBITDA margin is outside −100% to +100% (${formatMetric(ebitda / revenue * 100, 'percent', ctx)}). Confirm the imported units.` });
+    }
+  }
+
+  /* ---------- Basis-break detection (specification I.3 / E8) ---------- */
+  for (const bb of detectBasisBreaks(periods)) {
+    checks.push({
+      id: `basisbreak.${bb.key}.${bb.period}`,
+      label: `Possible basis change in ${bb.label} — ${bb.period}`,
+      status: 'warn',
+      period: bb.period,
+      detail:
+        `${bb.label} moved ${bb.changePct > 0 ? '+' : ''}${bb.changePct.toFixed(1)}% between ${bb.priorPeriod} and ${bb.period} ` +
+        `while ${bb.referenceLabels.join(' and ')} moved less than ${BASIS_BREAK_REFERENCE_TOLERANCE_PCT}%. ` +
+        'A line that re-bases on its own is usually a change of accounting or mapping rather than a change in the business; ' +
+        'trends and signals crossing this transition are not comparable.',
     });
   }
 
@@ -344,4 +359,74 @@ export function balanceSheetDifference(period: FinancialPeriod): Num {
   const e = val(period, 'totalEquity');
   if (!isNum(a) || !isNum(l) || !isNum(e)) return null;
   return a - (l + e);
+}
+
+/** A line item moves this far, in percent, before the movement is treated as a candidate break. */
+export const BASIS_BREAK_CHANGE_PCT = 60;
+/** …and every reference line must have moved less than this, in percent, for it to count. */
+export const BASIS_BREAK_REFERENCE_TOLERANCE_PCT = 20;
+
+export interface BasisBreak {
+  key: string;
+  label: string;
+  period: string;
+  priorPeriod: string;
+  changePct: number;
+  referenceLabels: string[];
+}
+
+/**
+ * Specification I.3 and explanation E8: find a line item that re-bases on its own.
+ *
+ * A single line moving by more than BASIS_BREAK_CHANGE_PCT while the lines it is economically
+ * tied to barely move is far more likely to be a change of accounting policy, presentation or
+ * input mapping than a change in the business. In the reference case a finance cost falling from
+ * ₹22 Cr to ₹5.79 Cr produced a "debt-servicing capacity has improved" positive signal out of
+ * what was an artefact. Detecting the break lets the transition be excluded rather than narrated.
+ *
+ * The check is deliberately conservative: it needs a real prior value to compute a percentage
+ * against, and it stays silent unless EVERY reference line is quiet, so a company-wide step
+ * change (an acquisition, a demerger) does not read as a basis break on every line at once.
+ */
+export function detectBasisBreaks(periods: FinancialPeriod[]): BasisBreak[] {
+  const watched: { key: string; label: string; references: { key: string; label: string }[] }[] = [
+    { key: 'interestExpense', label: 'finance cost', references: [{ key: 'longTermDebt', label: 'long-term debt' }, { key: 'shortTermDebt', label: 'short-term debt' }] },
+    { key: 'depreciation', label: 'depreciation', references: [{ key: 'ppe', label: 'PP&E' }] },
+    { key: 'cogs', label: 'cost of goods sold', references: [{ key: 'revenue', label: 'revenue' }] },
+    { key: 'accountsReceivable', label: 'receivables', references: [{ key: 'revenue', label: 'revenue' }] },
+    { key: 'inventory', label: 'inventory', references: [{ key: 'cogs', label: 'cost of goods sold' }, { key: 'revenue', label: 'revenue' }] },
+    { key: 'otherIncome', label: 'other income', references: [{ key: 'cash', label: 'cash' }] },
+    { key: 'operatingExpenses', label: 'operating expenses', references: [{ key: 'revenue', label: 'revenue' }] },
+  ];
+
+  const changePct = (prior: FinancialPeriod, current: FinancialPeriod, key: string): number | null => {
+    const before = val(prior, key);
+    const after = val(current, key);
+    if (!isNum(before) || !isNum(after) || before === 0) return null;
+    return ((after - before) / Math.abs(before)) * 100;
+  };
+
+  const breaks: BasisBreak[] = [];
+  const ordered = [...periods].sort((a, b) => a.order - b.order);
+  for (let i = 1; i < ordered.length; i += 1) {
+    const prior = ordered[i - 1]!;
+    const current = ordered[i]!;
+    for (const watch of watched) {
+      const moved = changePct(prior, current, watch.key);
+      if (moved === null || Math.abs(moved) < BASIS_BREAK_CHANGE_PCT) continue;
+      const referenceMoves = watch.references.map((r) => ({ ...r, pct: changePct(prior, current, r.key) }));
+      const usable = referenceMoves.filter((r) => r.pct !== null);
+      if (usable.length === 0) continue;
+      if (!usable.every((r) => Math.abs(r.pct as number) < BASIS_BREAK_REFERENCE_TOLERANCE_PCT)) continue;
+      breaks.push({
+        key: watch.key,
+        label: watch.label,
+        period: current.label,
+        priorPeriod: prior.label,
+        changePct: moved,
+        referenceLabels: usable.map((r) => r.label),
+      });
+    }
+  }
+  return breaks;
 }

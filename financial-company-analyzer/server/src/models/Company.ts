@@ -17,6 +17,10 @@ const FinancialPeriodSchema = new Schema(
     endDate: { type: String, default: null },
     order: { type: Number, required: true },
     isPartial: { type: Boolean, default: false },
+    // Specification C4: a period the user has marked as not representative. The engine excludes
+    // it from trend baselines and says so, rather than comparing against a one-off.
+    unusual: { type: Boolean, default: false },
+    unusualReason: { type: String, default: null, maxlength: 500 },
     // Stored as a free-form map keyed by canonical line-item key so new line items can be
     // added to the registry without a schema migration.
     values: { type: Map, of: Schema.Types.Mixed, default: () => new Map() },
@@ -53,6 +57,29 @@ const CompanySchema = new Schema(
     sharesOutstanding: { type: Number, default: null },
     notes: { type: String, default: null, maxlength: 2000 },
     isSample: { type: Boolean, default: false },
+
+    /**
+     * Specification Part B: which of several defensible definitions this company's metrics use.
+     * Stored as a loose subdocument so a new switch does not need a schema migration; the API
+     * validates the shape with Zod before it reaches here.
+     */
+    metricConfig: { type: Schema.Types.Mixed, default: undefined },
+    sectorProfile: {
+      type: String,
+      enum: ['defence_capital_goods', 'fmcg_consumer', 'banking_financials', 'software_services', 'general'],
+      default: undefined,
+    },
+    companyStage: {
+      type: String,
+      enum: ['early', 'growth', 'mature', 'turnaround', 'cyclical_trough', 'cyclical_peak'],
+      default: undefined,
+    },
+    /**
+     * Specification C3: the optional business-context sheet, keyed by period label. These are the
+     * inputs the five statements cannot yield — order book, revenue recognition basis, customer
+     * concentration — and several explanation tests cannot run without them.
+     */
+    businessContext: { type: Schema.Types.Mixed, default: undefined },
 
     periods: { type: [FinancialPeriodSchema], default: [] },
     peers: { type: [PeerCompanySchema], default: [] },
