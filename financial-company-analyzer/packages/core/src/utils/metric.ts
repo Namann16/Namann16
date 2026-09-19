@@ -1,4 +1,4 @@
-import type { DenominatorBasis, MetricPolarity, MetricStatus, MetricUnit, MetricValue, Num, Trend } from '../types.js';
+import type { DenominatorBasis, MetricAlternate, MetricPolarity, MetricStatus, MetricUnit, MetricValue, Num, Trend } from '../types.js';
 import { isNum, round, stdDev } from './number.js';
 
 export interface MetricSpec {
@@ -25,7 +25,15 @@ export function makeMetric(
   period: string,
   value: Num,
   inputs: Record<string, Num>,
-  options: { status?: MetricStatus; note?: string; denominatorBasis?: DenominatorBasis } = {},
+  options: {
+    status?: MetricStatus;
+    note?: string;
+    denominatorBasis?: DenominatorBasis;
+    /** The resolved definition, when configuration can change it (specification Part B rule 2). */
+    formula?: string;
+    /** Other defensible definitions that materially disagree (Part B rule 1). */
+    alternates?: MetricAlternate[];
+  } = {},
 ): MetricValue {
   let status: MetricStatus = options.status ?? 'ok';
   let note = options.note;
@@ -49,7 +57,9 @@ export function makeMetric(
     period,
     value: round(value, 4),
     unit: spec.unit,
-    formula: spec.formula,
+    // The resolved definition always wins over the definition's generic string, so a reader never
+    // sees a formula that does not match the number printed beside it.
+    formula: options.formula ?? spec.formula,
     inputs,
     status,
     ...(note ? { note } : {}),
@@ -57,6 +67,7 @@ export function makeMetric(
     ...(spec.higherIsBetter !== undefined ? { higherIsBetter: spec.higherIsBetter } : {}),
     ...(spec.polarity ? { polarity: spec.polarity } : {}),
     ...(options.denominatorBasis ? { denominatorBasis: options.denominatorBasis } : {}),
+    ...(options.alternates && options.alternates.length > 0 ? { alternates: options.alternates } : {}),
     ...(spec.saturationThreshold !== undefined && isNum(value) && Math.abs(value) > spec.saturationThreshold
       ? { note: `${note ? `${note} ` : ''}Values above ${spec.saturationThreshold}x are not meaningful at this leverage level.` }
       : {}),

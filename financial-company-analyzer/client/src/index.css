@@ -14,11 +14,26 @@
 
 @layer base {
   :root {
-    /* Apple's label hierarchy is opacity over the label colour, not separate greys. */
+    /*
+     * Apple's label hierarchy is opacity over the label colour, not separate greys.
+     *
+     * The alphas are raised above Apple's published values on purpose. iOS and macOS ship an
+     * "Increase Contrast" accessibility setting that darkens these system-wide, so Apple can
+     * afford a secondaryLabel at 0.6 — which measures 3.44:1 on a white card and fails WCAG AA
+     * for body text. A web page has no such switch, so copying the raw value would inherit the
+     * weakness without the remedy. These are the lowest alphas that clear 4.5:1 with headroom,
+     * measured against both the card and the page:
+     *
+     *   secondary 0.78  → 5.63:1 on #FFFFFF, 5.26:1 on #F2F2F7   (AA for body text)
+     *   tertiary  0.56  → 3.11:1 on #FFFFFF                      (AA-large; non-essential only)
+     *
+     * Tertiary is deliberately still below AA for body text: it is for text that repeats
+     * information available elsewhere, never for the only statement of a fact.
+     */
     --label: 0 0 0;
-    --label-secondary: rgba(60, 60, 67, 0.6);
-    --label-tertiary: rgba(60, 60, 67, 0.3);
-    --label-quaternary: rgba(60, 60, 67, 0.18);
+    --label-secondary: rgba(60, 60, 67, 0.78);
+    --label-tertiary: rgba(60, 60, 67, 0.56);
+    --label-quaternary: rgba(60, 60, 67, 0.3);
     --separator: rgba(60, 60, 67, 0.29);
     --separator-opaque: #C6C6C8;
     /* Fills tint a control against whatever is behind it, so one value works on any surface. */
@@ -33,10 +48,12 @@
   }
 
   .dark {
+    /* Dark mode needs less lifting: light text on a dark surface gains contrast faster.
+       secondary 0.6 already measures 5.95:1 on #1C1C1E, so only tertiary moves. */
     --label: 255 255 255;
     --label-secondary: rgba(235, 235, 245, 0.6);
-    --label-tertiary: rgba(235, 235, 245, 0.3);
-    --label-quaternary: rgba(235, 235, 245, 0.18);
+    --label-tertiary: rgba(235, 235, 245, 0.48);
+    --label-quaternary: rgba(235, 235, 245, 0.26);
     --separator: rgba(84, 84, 88, 0.65);
     --separator-opaque: #38383A;
     --fill: rgba(120, 120, 128, 0.36);

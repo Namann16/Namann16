@@ -215,13 +215,42 @@ export function MetricTable({
                       {s.label}
                       <InfoTip label={`About ${s.label}`}>
                         <span className="block font-semibold text-ink-900 dark:text-ink-100">{s.label}</span>
-                        <span className="mt-1 block font-mono text-[11px] text-ink-500 dark:text-ink-400">{s.formula}</span>
+                        <span className="mt-1 block font-mono text-[11px] text-ink-500 dark:text-ink-400">
+                          {s.latest?.formula ?? s.formula}
+                        </span>
                         <span className="mt-1.5 block">{s.meaning}</span>
+                        {s.latest?.alternates?.length ? (
+                          <span className="mt-2 block border-t border-ink-500/20 pt-2">
+                            <span className="block font-medium">Other defensible definitions</span>
+                            {s.latest.alternates.map((alt) => (
+                              <span key={alt.label} className="mt-1 block">
+                                <span className="font-medium">{alt.label}:</span>{' '}
+                                {formatMetric(alt.value, s.unit, ctx)}
+                                <span className="mt-0.5 block font-mono text-[10px] text-ink-500 dark:text-ink-400">{alt.formula}</span>
+                              </span>
+                            ))}
+                          </span>
+                        ) : null}
                       </InfoTip>
                     </span>
                   </th>
                   <td className={`tnum font-semibold ${available ? '' : 'text-ink-400'}`}>
                     {available ? formatMetric(s.latest!.value, s.unit, ctx) : 'n/a'}
+                    {/*
+                      Specification Part B rule 1: show both when they diverge. A metric with more
+                      than one defensible definition prints the alternatives that materially
+                      disagree, right beside the reported figure — silently picking one is how a
+                      9.6% ROCE ends up next to a 24% ROE with nothing to account for the gap.
+                    */}
+                    {available && s.latest?.alternates?.length ? (
+                      <span className="mt-1 block font-normal">
+                        {s.latest.alternates.map((alt) => (
+                          <span key={alt.label} className="block text-caption-2 text-ink-500 dark:text-ink-400" title={alt.formula}>
+                            {formatMetric(alt.value, s.unit, ctx)} on {alt.label.toLowerCase()}
+                          </span>
+                        ))}
+                      </span>
+                    ) : null}
                   </td>
                   <td className="tnum text-ink-600 dark:text-ink-300">
                     {s.previous?.status === 'ok' ? formatMetric(s.previous.value, s.unit, ctx) : 'n/a'}
@@ -259,7 +288,7 @@ export function MetricTable({
                           setEvidence({
                             title: `${s.label} — ${s.latest!.period}`,
                             evidence: {
-                              formula: s.formula,
+                              formula: s.latest?.formula ?? s.formula,
                               lines: Object.entries(s.latest!.inputs).map(([label, value]) => ({
                                 label,
                                 display: value === null ? 'n/a' : formatMetric(value as Num, label.toLowerCase().includes('rate') ? 'percent' : s.unit === 'currency' || s.unit === 'times' || s.unit === 'days' ? 'currency' : s.unit, ctx),

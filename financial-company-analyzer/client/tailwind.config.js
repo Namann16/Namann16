@@ -48,9 +48,17 @@ export default {
           100: '#E5E5EA',  // systemGray5
           200: '#D1D1D6',  // systemGray4 — hairline separators
           300: '#C7C7CC',  // systemGray3 — opaque separator
-          400: '#AEAEB2',  // systemGray2 — placeholder / quaternary label
-          500: '#8E8E93',  // systemGray  — secondary label
-          600: '#636366',  // dark systemGray2 — reads as tertiary ink on white
+          400: '#AEAEB2',  // systemGray2 — secondary label in DARK mode (7.69:1 on #1C1C1E)
+          /*
+           * Apple's systemGray (#8E8E93) is the published secondaryLabel colour, but it measures
+           * 3.26:1 on white and 2.92:1 on the grouped background — below WCAG AA for body text.
+           * Apple carries it because iOS and macOS offer an "Increase Contrast" setting that
+           * darkens it system-wide; a web page has no such switch. This is the next step down the
+           * same grey ramp, which clears AA on both surfaces (5.23:1 on white, 4.69:1 on #F2F2F7)
+           * and is still unmistakably an Apple grey.
+           */
+          500: '#6C6C70',  // secondary label in LIGHT mode
+          600: '#636366',  // dark systemGray2 — tertiary ink on white (5.99:1)
           700: '#48484A',  // dark systemGray3
           800: '#2C2C2E',  // tertiarySystemGroupedBackground (dark)
           900: '#1C1C1E',  // secondarySystemGroupedBackground (dark) — a card in dark mode

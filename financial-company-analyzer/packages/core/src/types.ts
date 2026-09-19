@@ -55,6 +55,24 @@ export interface MetricValue {
   polarity?: MetricPolarity;
   denominatorBasis?: DenominatorBasis;
   saturationThreshold?: number;
+  /**
+   * Other defensible definitions of the same metric, present only when one differs from the
+   * reported figure by more than the configured tolerance (specification Part B, rule 1).
+   * Silently picking one definition is how a 9.6% ROCE ends up printed beside a 24% ROE with
+   * nothing to explain the gap.
+   */
+  alternates?: MetricAlternate[];
+}
+
+/** One alternative definition of a metric, shown beside the reported figure when they diverge. */
+export interface MetricAlternate {
+  /** What this basis is called, e.g. "Equity + debt basis". */
+  label: string;
+  value: Num;
+  /** The resolved formula for THIS basis, never a generic string. */
+  formula: string;
+  /** How far it sits from the reported figure, in percent of the reported figure. */
+  divergencePercent: Num;
 }
 
 /** A metric tracked across all periods, with the derived change and trend. */
@@ -193,11 +211,25 @@ export interface MetricConfig {
     denominator?: 'assets_less_current_liabilities' | 'equity_plus_debt' | 'equity_plus_debt_less_surplus_cash';
     excludeCustomerAdvances?: boolean;
   };
-  roic?: { surplusCashTreatment?: 'cash_only' | 'cash_and_liquid_investments'; nopatBasis?: 'effective_tax_rate' | 'statutory_rate' };
+  roic?: {
+    surplusCashTreatment?: 'cash_only' | 'cash_and_liquid_investments';
+    nopatBasis?: 'effective_tax_rate' | 'statutory_rate';
+    /**
+     * Required when nopatBasis is 'statutory_rate'. There is no universal statutory rate, so the
+     * engine will not assume one: without this value it falls back to the effective rate and says
+     * so on the metric rather than inventing a jurisdiction.
+     */
+    statutoryRatePercent?: number;
+  };
   freeCashFlow?: { capexBasis?: 'ppe_only' | 'ppe_plus_intangibles' | 'total_investing_capex' };
   workingCapital?: { basis?: 'total_current' | 'operating_only' };
   receivables?: { dsoBasis?: 'trade_only' | 'trade_plus_unbilled' | 'both' };
   inventory?: { dioDenominator?: 'cogs' | 'total_operating_cost' | 'revenue' };
+  /**
+   * How far two definitions must diverge, in percent of the reported figure, before both are
+   * shown. Specification Part B suggests 25%.
+   */
+  definitionDivergencePercent?: number;
 }
 
 export interface BusinessContext {

@@ -57,9 +57,11 @@ export function calculateMetrics(
         annualizeInterimMetrics: options.annualizeInterimMetrics,
         metricConfig: options.metricConfig,
       };
-      const { value, inputs, note, denominatorBasis } = def.compute(ctx);
+      const { value, inputs, note, denominatorBasis, formula, alternates } = def.compute(ctx);
       return makeMetric(spec, period.label, value, inputs, {
         ...(note ? { note } : {}),
+        ...(formula ? { formula } : {}),
+        ...(alternates && alternates.length > 0 ? { alternates } : {}),
         ...(denominatorBasis ? { denominatorBasis } : {}),
       });
     });

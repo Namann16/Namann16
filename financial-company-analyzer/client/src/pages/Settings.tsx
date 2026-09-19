@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Currency, IndustryKey, ThresholdConfig, Units } from '@fca/core';
 import { api, type UserSettings } from '../api/client';
 import { useWorkspace } from '../state/WorkspaceContext';
+import { MetricDefinitionPanel } from '../components/analysis/MetricDefinitionPanel';
 import { Badge, Banner, Card, EmptyState, Field, PageHeader, Spinner } from '../components/ui/primitives';
 
 /** Thresholds grouped for presentation. Every one of them is editable per company. */
@@ -249,6 +250,11 @@ export default function Settings() {
               </label>
             </div>
           </Card>
+
+          <MetricDefinitionPanel
+            config={current.company.metricConfig}
+            onSave={(metricConfig) => updateProfile({ metricConfig })}
+          />
 
           {industry && (
             <Card title={`Industry treatment — ${industry.label}`}>
