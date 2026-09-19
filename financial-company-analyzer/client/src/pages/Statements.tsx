@@ -23,11 +23,19 @@ const COMMON_SIZE_BASE: Record<StatementKey, { key: string; label: string }> = {
   share: { key: 'revenue', label: 'revenue' },
 };
 
+const LOWER_IS_BETTER = new Set([
+  'cogs', 'operatingExpenses', 'employeeExpenses', 'sellingMarketingExpenses', 'generalAdminExpenses',
+  'otherOperatingExpenses', 'depreciation', 'amortisation', 'financeCosts', 'incomeTax', 'incomeTaxesPaid',
+  'totalLiabilities', 'borrowings', 'currentBorrowings', 'nonCurrentBorrowings', 'leaseLiabilities',
+  'accountsPayable', 'provisions', 'totalDebt', 'netDebt',
+]);
+
 export default function Statements() {
   const { analysis, current, meta } = useWorkspace();
   const [statement, setStatement] = useState<StatementKey>('income');
   const [view, setView] = useState<View>('absolute');
   const [hideEmpty, setHideEmpty] = useState(true);
+  const [showImpacts, setShowImpacts] = useState(false);
 
   const periods = analysis?.statements ?? [];
   const lineItems = useMemo(
@@ -73,6 +81,18 @@ export default function Statements() {
     if (value === null) return '';
     if (Math.abs(value) < 20) return '';
     return value > 0 ? 'text-positive-700 dark:text-positive-500' : 'text-negative-700 dark:text-negative-500';
+  };
+
+  const impact = (item: LineItemDef, periodIndex: number) => {
+    if (!showImpacts || periodIndex === 0) return { arrow: '→', tone: 'neutral', label: 'No prior period' };
+    const current = cellValue(item, periodIndex).value;
+    const previous = cellValue(item, periodIndex - 1).value;
+    if (current === null || previous === null || current === previous) return { arrow: '→', tone: 'neutral', label: 'No change' };
+    const delta = current - previous;
+    const favourable = LOWER_IS_BETTER.has(item.key) ? delta < 0 : delta > 0;
+    return favourable
+      ? { arrow: '▲', tone: 'positive', label: 'Positive impact' }
+      : { arrow: '▼', tone: 'negative', label: 'Negative impact' };
   };
 
   const visibleItems = hideEmpty
@@ -138,6 +158,10 @@ export default function Statements() {
               <input type="checkbox" checked={hideEmpty} onChange={(e) => setHideEmpty(e.target.checked)} />
               Hide empty rows
             </label>
+            <label className="flex items-center gap-1.5 text-2xs text-ink-600 dark:text-ink-400">
+              <input type="checkbox" checked={showImpacts} onChange={(e) => setShowImpacts(e.target.checked)} />
+              Show impacts
+            </label>
           </div>
         </div>
 
@@ -175,6 +199,7 @@ export default function Statements() {
                       <th title={item.description}>{item.label}</th>
                       {periods.map((period, index) => {
                         const { value, unit } = cellValue(item, index);
+                        const direction = impact(item, index);
                         const source = typeof period.values[item.key] === 'number'
                           ? (period.sources[item.key] === 'calculated' ? 'calculated' : 'entered')
                           : 'missing';
@@ -185,6 +210,15 @@ export default function Statements() {
                               : unit === 'currency'
                                 ? formatCurrency(value, ctx)
                                 : formatMetric(value, 'percent', ctx)}
+                            {showImpacts && (
+                              <span
+                                className={`ml-1 text-2xs font-semibold ${direction.tone === 'positive' ? 'text-positive-600 dark:text-positive-400' : direction.tone === 'negative' ? 'text-negative-600 dark:text-negative-400' : 'text-ink-400'}`}
+                                title={direction.label}
+                                aria-label={direction.label}
+                              >
+                                {direction.arrow}
+                              </span>
+                            )}
                             {view === 'absolute' && <SourceDot source={source} />}
                           </td>
                         );
@@ -201,6 +235,13 @@ export default function Statements() {
         <div className="flex flex-wrap items-center gap-4 border-t border-ink-200 px-3 py-2 text-2xs text-ink-500 dark:border-ink-800 dark:text-ink-400">
           <span className="flex items-center gap-1"><SourceDot source="entered" /> entered or imported</span>
           <span className="flex items-center gap-1"><SourceDot source="calculated" /> calculated by the engine</span>
+          {showImpacts && (
+            <span className="flex items-center gap-2">
+              <span className="text-positive-600 dark:text-positive-400">▲ positive</span>
+              <span className="text-negative-600 dark:text-negative-400">▼ negative</span>
+              <span>→ unchanged</span>
+            </span>
+          )}
           <span>Amounts in {ctx.currency} {current.company.units}.</span>
         </div>
       </Card>
