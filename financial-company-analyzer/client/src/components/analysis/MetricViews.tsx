@@ -43,7 +43,7 @@ export function KpiCard({
   return (
     <div
       className={`surface px-3 py-2.5 transition-colors ${
-        emphasise ? 'border-accent-200 bg-accent-50/30 dark:border-accent-700/50 dark:bg-accent-700/10' : ''
+        emphasise ? 'ring-1 ring-inset ring-accent-600/25 dark:ring-accent-500/30' : ''
       }`}
     >
       <div className="flex items-start justify-between gap-1">
@@ -125,7 +125,7 @@ export function EvidenceModal({ open, title, evidence, onClose }: { open: boolea
             </table>
           </div>
           {evidence.conclusion && (
-            <div className="rounded border border-accent-100 bg-accent-50 px-3 py-2 text-[12.5px] leading-relaxed text-accent-800 dark:border-accent-700/40 dark:bg-accent-700/15 dark:text-accent-100">
+            <div className="rounded-xl bg-accent-600/[0.10] px-3 py-2 text-callout leading-relaxed text-accent-800 dark:bg-accent-500/[0.16] dark:text-accent-300">
               {evidence.conclusion}
             </div>
           )}
@@ -215,13 +215,42 @@ export function MetricTable({
                       {s.label}
                       <InfoTip label={`About ${s.label}`}>
                         <span className="block font-semibold text-ink-900 dark:text-ink-100">{s.label}</span>
-                        <span className="mt-1 block font-mono text-[11px] text-ink-500 dark:text-ink-400">{s.formula}</span>
+                        <span className="mt-1 block font-mono text-[11px] text-ink-500 dark:text-ink-400">
+                          {s.latest?.formula ?? s.formula}
+                        </span>
                         <span className="mt-1.5 block">{s.meaning}</span>
+                        {s.latest?.alternates?.length ? (
+                          <span className="mt-2 block border-t border-ink-500/20 pt-2">
+                            <span className="block font-medium">Other defensible definitions</span>
+                            {s.latest.alternates.map((alt) => (
+                              <span key={alt.label} className="mt-1 block">
+                                <span className="font-medium">{alt.label}:</span>{' '}
+                                {formatMetric(alt.value, s.unit, ctx)}
+                                <span className="mt-0.5 block font-mono text-[10px] text-ink-500 dark:text-ink-400">{alt.formula}</span>
+                              </span>
+                            ))}
+                          </span>
+                        ) : null}
                       </InfoTip>
                     </span>
                   </th>
                   <td className={`tnum font-semibold ${available ? '' : 'text-ink-400'}`}>
                     {available ? formatMetric(s.latest!.value, s.unit, ctx) : 'n/a'}
+                    {/*
+                      Specification Part B rule 1: show both when they diverge. A metric with more
+                      than one defensible definition prints the alternatives that materially
+                      disagree, right beside the reported figure — silently picking one is how a
+                      9.6% ROCE ends up next to a 24% ROE with nothing to account for the gap.
+                    */}
+                    {available && s.latest?.alternates?.length ? (
+                      <span className="mt-1 block font-normal">
+                        {s.latest.alternates.map((alt) => (
+                          <span key={alt.label} className="block text-caption-2 text-ink-500 dark:text-ink-400" title={alt.formula}>
+                            {formatMetric(alt.value, s.unit, ctx)} on {alt.label.toLowerCase()}
+                          </span>
+                        ))}
+                      </span>
+                    ) : null}
                   </td>
                   <td className="tnum text-ink-600 dark:text-ink-300">
                     {s.previous?.status === 'ok' ? formatMetric(s.previous.value, s.unit, ctx) : 'n/a'}
@@ -238,19 +267,28 @@ export function MetricTable({
                   <td>
                     <Badge tone={TREND_TONE[s.trend]}>{TREND_LABEL[s.trend]}</Badge>
                   </td>
-                  <td className="max-w-md whitespace-normal text-left text-[12px] leading-snug text-ink-600 dark:text-ink-300">
-                    {available ? s.meaning : (s.latest?.note ?? 'Not enough data to calculate this metric.')}
+                  <td className="text-subheadline leading-snug text-ink-500 dark:text-ink-400">
+                    {/*
+                      Both the width cap and the wrapping have to live on a block INSIDE the cell.
+                      A td in an auto-layout table ignores max-width, and `.fin-table td` sets
+                      whitespace-nowrap with higher specificity than a utility class on the cell —
+                      so the text neither wrapped nor stayed inside the column, and ran over the
+                      Trace link beside it.
+                    */}
+                    <div className="ml-auto max-w-[17rem] whitespace-normal text-left">
+                      {available ? s.meaning : (s.latest?.note ?? 'Not enough data to calculate this metric.')}
+                    </div>
                   </td>
                   <td className="text-center">
                     {s.latest && (
                       <button
                         type="button"
-                        className="text-2xs font-semibold text-accent-600 underline underline-offset-2 hover:text-accent-800"
+                        className="text-footnote text-accent-600 hover:underline dark:text-accent-500"
                         onClick={() =>
                           setEvidence({
                             title: `${s.label} — ${s.latest!.period}`,
                             evidence: {
-                              formula: s.formula,
+                              formula: s.latest?.formula ?? s.formula,
                               lines: Object.entries(s.latest!.inputs).map(([label, value]) => ({
                                 label,
                                 display: value === null ? 'n/a' : formatMetric(value as Num, label.toLowerCase().includes('rate') ? 'percent' : s.unit === 'currency' || s.unit === 'times' || s.unit === 'days' ? 'currency' : s.unit, ctx),
@@ -292,7 +330,7 @@ export function FlagCard({ flag }: { flag: Flag }) {
       <article className={`surface border-l-4 px-4 py-3 ${border}`}>
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={tone}>{flag.sentiment === 'positive' ? 'Positive' : SEVERITY_LABEL[flag.severity]}</Badge>
-          <span className="text-2xs uppercase tracking-wider text-ink-500 dark:text-ink-400">{flag.rule}</span>
+          <span className="text-footnote text-ink-500 dark:text-ink-400">{flag.rule}</span>
           <span className="text-2xs text-ink-400">· {flag.period}</span>
         </div>
         <h3 className="mt-1.5 text-[13px] font-semibold text-ink-900 dark:text-ink-50">{flag.title}</h3>

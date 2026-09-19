@@ -104,7 +104,7 @@ export function BusinessContextPanel({
           const context = contextFor(period.label);
           const unusual = context.unusual === true || period.unusual === true;
           return (
-            <div key={period.label} className="rounded-lg border border-ink-200 px-3 py-2.5 dark:border-ink-800">
+            <div key={period.label} className="rounded-xl bg-ink-500/[0.06] px-3 py-2.5 dark:bg-ink-400/[0.08]">
               <p className="label-caps">{period.label}</p>
               <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 <Field label={`Order book, closing (${unitsLabel})`}>

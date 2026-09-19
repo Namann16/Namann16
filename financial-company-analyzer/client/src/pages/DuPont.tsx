@@ -62,11 +62,11 @@ export default function DuPont() {
         <div className="flex flex-wrap items-center gap-3 font-mono text-[13px]">
           <span className="rounded bg-accent-700 px-3 py-2 font-semibold text-white">ROE</span>
           <span className="text-ink-400">=</span>
-          <span className="rounded border border-ink-300 px-3 py-2 dark:border-ink-700">Net Profit Margin</span>
+          <span className="rounded-xl bg-ink-500/[0.06] px-3 py-2 dark:bg-ink-400/[0.08]">Net Profit Margin</span>
           <span className="text-ink-400">×</span>
-          <span className="rounded border border-ink-300 px-3 py-2 dark:border-ink-700">Asset Turnover</span>
+          <span className="rounded-xl bg-ink-500/[0.06] px-3 py-2 dark:bg-ink-400/[0.08]">Asset Turnover</span>
           <span className="text-ink-400">×</span>
-          <span className="rounded border border-ink-300 px-3 py-2 dark:border-ink-700">Equity Multiplier</span>
+          <span className="rounded-xl bg-ink-500/[0.06] px-3 py-2 dark:bg-ink-400/[0.08]">Equity Multiplier</span>
         </div>
         <p className="mt-3 max-w-3xl text-[12.5px] leading-relaxed text-ink-700 dark:text-ink-300">
           The identity holds because (Net Income / Revenue) × (Revenue / Assets) × (Assets / Equity) cancels down to
@@ -93,14 +93,14 @@ export default function DuPont() {
           <p className="text-[12.5px] leading-relaxed text-ink-800 dark:text-ink-200">{attribution.narrative}</p>
 
           <div className="mt-4 grid gap-2.5 md:grid-cols-4">
-            <div className="rounded-md border border-accent-200 bg-accent-50 px-3 py-2.5 dark:border-accent-700/40 dark:bg-accent-700/15">
+            <div className="rounded-xl bg-accent-600/[0.10] px-3 py-2.5 dark:bg-accent-500/[0.16]">
               <p className="label-caps">Total ROE change</p>
               <p className="tnum text-xl font-semibold text-accent-800 dark:text-accent-100">
                 {attribution.roeChange !== null ? `${attribution.roeChange >= 0 ? '+' : ''}${attribution.roeChange.toFixed(2)} pp` : 'n/a'}
               </p>
             </div>
             {effects.map((effect) => (
-              <div key={effect.key} className="rounded-md border border-ink-200 px-3 py-2.5 dark:border-ink-800">
+              <div key={effect.key} className="rounded-xl bg-ink-500/[0.06] px-3 py-2.5 dark:bg-ink-400/[0.08]">
                 <p className="label-caps">{effect.label}</p>
                 <p className={`tnum text-xl font-semibold ${
                   effect.value === null ? 'text-ink-400'

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Currency, IndustryKey, ThresholdConfig, Units } from '@fca/core';
 import { api, type UserSettings } from '../api/client';
 import { useWorkspace } from '../state/WorkspaceContext';
+import { MetricDefinitionPanel } from '../components/analysis/MetricDefinitionPanel';
 import { Badge, Banner, Card, EmptyState, Field, PageHeader, Spinner } from '../components/ui/primitives';
 
 /** Thresholds grouped for presentation. Every one of them is editable per company. */
@@ -238,7 +239,7 @@ export default function Settings() {
                   <option value="quarterly">Quarterly</option>
                 </select>
               </Field>
-              <label className="flex items-start gap-2 rounded-lg border border-accent-100 bg-accent-50/60 p-3 text-[12px] dark:border-accent-700/40 dark:bg-accent-700/10 md:col-span-2">
+              <label className="flex items-start gap-2 rounded-xl bg-accent-600/[0.10] p-3 text-subheadline dark:bg-accent-500/[0.16] md:col-span-2">
                 <input
                   type="checkbox"
                   className="mt-0.5 accent-accent-600"
@@ -249,6 +250,11 @@ export default function Settings() {
               </label>
             </div>
           </Card>
+
+          <MetricDefinitionPanel
+            config={current.company.metricConfig}
+            onSave={(metricConfig) => updateProfile({ metricConfig })}
+          />
 
           {industry && (
             <Card title={`Industry treatment — ${industry.label}`}>

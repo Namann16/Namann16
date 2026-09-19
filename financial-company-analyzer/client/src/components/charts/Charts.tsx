@@ -269,7 +269,7 @@ export function FinancialChart({
         </button>
       </div>
       {showTable ? (
-        <div className="overflow-x-auto rounded border border-ink-200 dark:border-ink-800">
+        <div className="overflow-x-auto rounded bg-ink-500/[0.06] dark:bg-ink-400/[0.08]">
           <table className="fin-table text-[11px]">
             <caption className="sr-only">Data table for {series.map((item) => item.label).join(', ')}</caption>
             <thead>

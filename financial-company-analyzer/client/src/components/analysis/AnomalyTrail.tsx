@@ -82,7 +82,7 @@ function AnomalyRow({ anomaly, label, unit, ctx }: {
   const missing = [...new Set(anomaly.candidates.filter((c) => !c.evidence.passed).flatMap((c) => c.evidence.missingInputs))];
 
   return (
-    <div className="rounded-lg border border-ink-200 px-3 py-2.5 dark:border-ink-800">
+    <div className="rounded-xl bg-ink-500/[0.06] px-3 py-2.5 dark:bg-ink-400/[0.08]">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[12.5px] font-semibold text-ink-900 dark:text-ink-100">{label}</p>
@@ -181,7 +181,7 @@ export function ContradictionPanel({ analysis }: { analysis: AnalysisResult }) {
     >
       <div className="space-y-2">
         {analysis.contradictions.map((contradiction) => (
-          <div key={contradiction.measure + contradiction.findings.map((f) => f.id).join('|')} className="rounded-lg border border-caution-200 bg-caution-50/60 px-3 py-2 dark:border-caution-700/40 dark:bg-caution-700/10">
+          <div key={contradiction.measure + contradiction.findings.map((f) => f.id).join('|')} className="rounded-xl bg-caution-500/[0.12] px-3 py-2 dark:bg-caution-400/[0.14]">
             <p className="label-caps">{contradiction.measure}</p>
             <p className="mt-0.5 text-[12px] text-ink-700 dark:text-ink-300">{contradiction.detail}</p>
             <ul className="mt-1.5 space-y-1">
