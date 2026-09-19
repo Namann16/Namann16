@@ -112,6 +112,7 @@ export default function Landing() {
         <video
           className="hero-video-media"
           autoPlay
+          loop
           muted
           playsInline
           poster="/hero-video/market-pulse.gif"
