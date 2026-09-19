@@ -364,10 +364,11 @@
     letter-spacing: 0;
     text-transform: none;
   }
-  /* Where a genuine group header is needed, it is a semibold footnote, not small caps. */
+  /* Group headers should be easy to scan without competing with the active row. */
   .group-header {
-    @apply text-footnote font-semibold;
-    color: var(--label-secondary);
+    @apply text-callout font-semibold;
+    color: var(--label);
+    letter-spacing: -0.01em;
   }
 
   /* KPI tile: the figure dominates; nothing else on the tile competes with it. */
@@ -616,7 +617,7 @@
 
   /* Sidebar row: a filled accent capsule when selected, a neutral fill on hover. */
   .sidebar-item {
-    @apply block rounded-md px-2.5 py-[5px] text-callout;
+    @apply flex items-center gap-2 rounded-md px-2.5 py-[5px] text-callout;
     color: rgb(var(--label));
     transition: background-color 150ms linear, color 150ms linear;
   }
