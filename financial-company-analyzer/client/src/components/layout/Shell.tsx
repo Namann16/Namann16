@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { unitsLabel } from '@fca/core';
 import { useWorkspace } from '../../state/WorkspaceContext';
@@ -148,8 +148,48 @@ export function Shell({ children }: { children: ReactNode }) {
   const { current, analysis, analysing, error, clearError, meta, dirty, theme, setTheme } = useWorkspace();
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
+  const mainRef = useRef<HTMLElement>(null);
 
   const hasCompany = Boolean(current);
+
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+
+    const revealable = () => main.querySelectorAll<HTMLElement>('.stagger > *:not(.scroll-reveal)');
+    const revealAll = () => revealable().forEach((element) => element.classList.add('scroll-revealed'));
+    if (!('IntersectionObserver' in window)) {
+      revealAll();
+      return;
+    }
+
+    const revealObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add('scroll-revealed');
+          revealObserver.unobserve(entry.target);
+        });
+      },
+      { threshold: 0.01, rootMargin: '0px 0px 0px 0px' },
+    );
+
+    const observeSections = () => {
+      revealable().forEach((element) => {
+        element.classList.add('scroll-reveal');
+        revealObserver.observe(element);
+      });
+    };
+
+    observeSections();
+    const mutationObserver = new MutationObserver(observeSections);
+    mutationObserver.observe(main, { childList: true, subtree: true });
+
+    return () => {
+      mutationObserver.disconnect();
+      revealObserver.disconnect();
+    };
+  }, []);
 
   return (
     <div className="flex h-full min-h-screen flex-col lg:flex-row">
@@ -282,7 +322,7 @@ export function Shell({ children }: { children: ReactNode }) {
         )}
 
         {/* Only the content carries the `page` name, so the chrome stays put while it changes. */}
-        <main className="flex-1 px-4 py-5 lg:px-6 lg:py-7" style={{ viewTransitionName: 'page' }}>{children}</main>
+        <main ref={mainRef} className="flex-1 px-4 py-5 lg:px-6 lg:py-7" style={{ viewTransitionName: 'page' }}>{children}</main>
 
         <footer className="hairline-t px-4 py-3 text-caption-2 leading-relaxed text-ink-500 lg:px-6">
           All metrics are calculated deterministically from the data you entered. Figures shown as “n/a” could not be calculated and are not zero.
