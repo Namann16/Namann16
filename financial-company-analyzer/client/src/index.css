@@ -385,6 +385,7 @@
 
   .fin-table {
     @apply w-full border-collapse text-callout;
+    min-width: max-content;
   }
   .fin-table th,
   .fin-table td {
@@ -467,6 +468,12 @@
       max-width: 9.25rem;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    .fin-table.sticky-labels thead th:first-child,
+    .fin-table.sticky-labels tbody th:first-child {
+      width: 9.25rem;
+      min-width: 9.25rem;
+      max-width: 9.25rem;
     }
   }
 

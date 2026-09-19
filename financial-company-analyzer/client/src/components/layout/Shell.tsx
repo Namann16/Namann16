@@ -198,7 +198,7 @@ export function Shell({ children }: { children: ReactNode }) {
         beside it. A single hairline marks where it ends.
       */}
       <aside
-        className={`${mobileOpen ? 'block' : 'hidden'} material w-full shrink-0 hairline lg:sticky lg:top-0 lg:block lg:h-screen lg:w-[15rem] lg:border-b-0 lg:border-r-[0.5px] lg:border-r-[color:var(--separator)]`}
+        className={`${mobileOpen ? 'block' : 'hidden'} material fixed inset-0 z-40 h-screen w-full shrink-0 hairline lg:sticky lg:top-0 lg:block lg:h-screen lg:w-[15rem] lg:border-b-0 lg:border-r-[0.5px] lg:border-r-[color:var(--separator)]`}
         style={{ viewTransitionName: 'chrome' }}
       >
         <div className="flex h-full flex-col">
