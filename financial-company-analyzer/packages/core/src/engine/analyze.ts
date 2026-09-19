@@ -35,9 +35,9 @@ export function analyze(dataset: CompanyDataset): AnalysisResult {
     annualizeInterimMetrics: dataset.company.annualizeInterimMetrics,
   });
   const duPont = analyzeDuPont(periods, metrics);
-  const health = scoreHealth(metrics, thresholds);
   const dataQuality = assessDataQuality(periods, dataset.company, metrics, thresholds);
   const anomalies = detectAnomalies({ ...dataset, periods }, metrics);
+  const health = scoreHealth(metrics, thresholds, anomalies);
 
   const latestPeriod = periods.length ? periods[periods.length - 1]!.label : null;
 

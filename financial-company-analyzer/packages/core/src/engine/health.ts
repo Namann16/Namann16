@@ -3,6 +3,7 @@ import type {
   HealthLabel,
   HealthPillar,
   HealthScore,
+  Anomaly,
   MetricGroup,
   MetricSeries,
   Num,
@@ -247,6 +248,7 @@ function labelForScore(score: number | null): HealthLabel {
 export function scoreHealth(
   metrics: Record<string, MetricSeries>,
   thresholds: ThresholdConfig,
+  anomalies: Anomaly[] = [],
 ): HealthScore {
   let unratedChecks = 0;
 
@@ -295,13 +297,20 @@ export function scoreHealth(
         score = band(point.value, check.low, check.high, check.lowerIsBetter);
       }
 
+      const unexplained = anomalies.some((anomaly) =>
+        anomaly.metric === check.metricKey &&
+        anomaly.status === 'unexplained' &&
+        anomaly.period === (series.latest?.period ?? ''),
+      );
+      if (unexplained) score = Math.max(0, score - 0.25);
+
       weightedScore += score * check.weight;
       usedWeight += check.weight;
 
       factors.push({
         label: check.label,
         direction: score >= 0.65 ? 'supports' : score <= 0.4 ? 'offsets' : 'neutral',
-        detail: check.explain(observed, score),
+        detail: `${check.explain(observed, score)}${unexplained ? ' An unexplained anomaly reduced this score until the input or business cause is resolved.' : ''}`,
         points: Math.round(score * check.weight * 10) / 10,
       });
     }
