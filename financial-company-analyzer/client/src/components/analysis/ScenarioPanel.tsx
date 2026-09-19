@@ -75,6 +75,16 @@ export function ScenarioPanel({
       .slice(0, 8)
     : [];
   const healthTone = (result?.healthDelta ?? 0) > 0 ? 'positive' : (result?.healthDelta ?? 0) < 0 ? 'negative' : 'neutral';
+  const healthArrow = (result?.healthDelta ?? 0) > 0 ? '▲' : (result?.healthDelta ?? 0) < 0 ? '▼' : '→';
+
+  const metricImpact = (change: ScenarioDiff['metricChanges'][number]) => {
+    if (change.delta === null || change.delta === 0) return { arrow: '→', tone: 'neutral', label: 'No change' };
+    const series = result?.base.metrics[change.key];
+    const favourable = series?.higherIsBetter === false ? change.delta < 0 : change.delta > 0;
+    return favourable
+      ? { arrow: '▲', tone: 'positive', label: 'Positive impact' }
+      : { arrow: '▼', tone: 'negative', label: 'Negative impact' };
+  };
 
   return (
     <Card
@@ -141,7 +151,8 @@ export function ScenarioPanel({
             <div className="grid gap-2 sm:grid-cols-3">
               <div className="surface px-3 py-2">
                 <p className="label-caps">Health score change</p>
-                <p className="mt-1 text-lg font-semibold tnum">
+                <p className={`mt-1 text-lg font-semibold tnum ${healthTone === 'positive' ? 'text-positive-600 dark:text-positive-400' : healthTone === 'negative' ? 'text-negative-600 dark:text-negative-400' : 'text-ink-600 dark:text-ink-300'}`}>
+                  <span aria-hidden="true">{healthArrow} </span>
                   {result.healthDelta === null ? 'n/a' : `${result.healthDelta > 0 ? '+' : ''}${result.healthDelta.toFixed(1)}`}
                 </p>
               </div>
@@ -171,7 +182,18 @@ export function ScenarioPanel({
                         <th className="text-left">{change.label}</th>
                         <td className="tnum">{change.base === null ? 'n/a' : formatMetric(change.base, change.unit, ctx)}</td>
                         <td className="tnum">{change.scenario === null ? 'n/a' : formatMetric(change.scenario, change.unit, ctx)}</td>
-                        <td className="tnum">{change.delta === null ? 'n/a' : formatMetric(change.delta, change.unit, ctx)}</td>
+                        <td className="tnum">
+                          {(() => {
+                            const impact = metricImpact(change);
+                            return (
+                              <span className={impact.tone === 'positive' ? 'text-positive-600 dark:text-positive-400' : impact.tone === 'negative' ? 'text-negative-600 dark:text-negative-400' : 'text-ink-500 dark:text-ink-400'} title={impact.label}>
+                                <span aria-hidden="true">{impact.arrow} </span>
+                                <span className="sr-only">{impact.label}: </span>
+                                {change.delta === null ? 'n/a' : formatMetric(change.delta, change.unit, ctx)}
+                              </span>
+                            );
+                          })()}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
