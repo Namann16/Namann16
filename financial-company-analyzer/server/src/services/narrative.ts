@@ -142,7 +142,10 @@ export async function generateNarrative(
       messages: [
         {
           role: 'user',
-          content: `Rewrite this analysis as an executive summary. These are the only facts you may use.\n\n${JSON.stringify(facts, null, 2)}`,
+          // Compact JSON, not pretty-printed: indentation was 43% of this payload and carries
+          // no information. Nothing is dropped here — what is sent is exactly `facts`, which is
+          // also what the numeric fidelity check below is run against.
+          content: `Rewrite this analysis as an executive summary. These are the only facts you may use.\n\n${JSON.stringify(facts)}`,
         },
       ],
     });

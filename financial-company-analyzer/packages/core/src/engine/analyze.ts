@@ -106,6 +106,20 @@ export function analyze(dataset: CompanyDataset): AnalysisResult {
  *
  * The LLM never sees raw unvalidated input and is never asked to compute anything: it receives
  * only calculated metrics, rule outcomes and evidence, so it cannot hallucinate a number.
+ *
+ * This is also what `GET /:id/facts` returns, so the two must not drift: that endpoint exists to
+ * show exactly what a model would be given, and it would be worthless if it showed something else.
+ *
+ * Deliberately excluded: the per-metric `points` series. It was 80% of the payload — six points
+ * across seventy metrics — and an executive summary does not narrate a series. Trajectory is
+ * already carried by `change`, `trend` and `cagr`, and the findings state multi-period patterns in
+ * words. Sending a bare array of values to save space was rejected: `points` is not guaranteed to
+ * hold one entry per period, so positional alignment against `periods` could attribute a figure to
+ * the wrong year, which is a worse failure than a vaguer summary.
+ *
+ * The exclusion also tightens the numeric fidelity check, which draws its set of permitted figures
+ * from this object: fewer values means fewer coincidental matches, and the model cannot cite a
+ * historical point it was never shown.
  */
 export function buildLlmFacts(result: AnalysisResult) {
   return {
@@ -130,7 +144,6 @@ export function buildLlmFacts(result: AnalysisResult) {
         previous: m.previous?.value ?? null,
         change: m.change,
         trend: m.trend,
-        series: m.points.map((p) => ({ period: p.period, value: p.value, status: p.status })),
       })),
     cagr: result.cagr.map((c) => ({ key: c.key, label: c.label, value: c.value, status: c.status, note: c.note ?? null })),
     duPont: result.duPont.attribution,
