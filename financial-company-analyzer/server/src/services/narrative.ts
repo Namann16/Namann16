@@ -1,7 +1,7 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { checkNumericFidelity, type AnalysisResult, type ExecutiveSummary } from '@fca/core';
 import { buildLlmFacts } from '@fca/core';
 import { config } from '../config/env.js';
+import { completeStructured } from './llm.js';
 
 /**
  * Optional narrative layer.
@@ -109,13 +109,6 @@ export interface NarrativeOutcome {
   detail?: string;
 }
 
-let client: Anthropic | null = null;
-function anthropic(): Anthropic {
-  // Constructed lazily so an unconfigured deployment never builds a client it cannot use.
-  client ??= new Anthropic({ apiKey: config.LLM_API_KEY });
-  return client;
-}
-
 /**
  * Rewrite an analysis's executive summary.
  *
@@ -126,71 +119,54 @@ export async function generateNarrative(
   analysis: AnalysisResult,
   options: { enabled: boolean },
 ): Promise<NarrativeOutcome> {
+  // Order matters: with no key at all, "not configured" is the useful answer and the toggle is
+  // beside the point. completeStructured() would also report it, but only after the toggle check.
   if (!config.hasLlm) return { result: null, reason: 'not_configured' };
   if (!options.enabled) return { result: null, reason: 'disabled' };
   if (!analysis.latestPeriod) return { result: null, reason: 'no_analysis' };
 
   const facts = buildLlmFacts(analysis);
 
-  try {
-    const response = await anthropic().messages.parse({
-      model: config.LLM_MODEL,
-      max_tokens: 16000,
-      system: SYSTEM_PROMPT,
-      // Rephrasing a fixed verdict is not a reasoning task; low effort keeps it fast and cheap.
-      output_config: { effort: 'low', format: { type: 'json_schema', schema: NARRATIVE_SCHEMA } },
-      messages: [
-        {
-          role: 'user',
-          // Compact JSON, not pretty-printed: indentation was 43% of this payload and carries
-          // no information. Nothing is dropped here — what is sent is exactly `facts`, which is
-          // also what the numeric fidelity check below is run against.
-          content: `Rewrite this analysis as an executive summary. These are the only facts you may use.\n\n${JSON.stringify(facts)}`,
-        },
-      ],
-    });
+  // Compact JSON, not pretty-printed: indentation was 43% of this payload and carries no
+  // information. Nothing is dropped — what is sent is exactly `facts`, which is also what the
+  // numeric fidelity check below runs against, so the two can never disagree about what was seen.
+  const outcome = await completeStructured({
+    system: SYSTEM_PROMPT,
+    user: `Rewrite this analysis as an executive summary. These are the only facts you may use.\n\n${JSON.stringify(facts)}`,
+    schemaName: 'executive_summary',
+    schema: NARRATIVE_SCHEMA,
+    maxTokens: 16000,
+  });
 
-    if (response.stop_reason === 'refusal') {
-      return { result: null, reason: 'refused', detail: response.stop_details?.explanation ?? '' };
-    }
-
-    const parsed = asNarrative(response.parsed_output);
-    if (!parsed) return { result: null, reason: 'unparsable' };
-
-    // The guarantee. Any figure that traces to nothing the engine computed discards the lot —
-    // a narrative is worth having only while every number in it is the engine's.
-    const prose = [parsed.headline, parsed.overallAssessment, ...parsed.takeaways].join('\n');
-    const fidelity = checkNumericFidelity(prose, facts);
-    if (!fidelity.ok) {
-      return {
-        result: null,
-        reason: 'failed_numeric_check',
-        detail: fidelity.unsupported.map((u) => `${u.value} in "${u.context}"`).join('; '),
-      };
-    }
-
-    return {
-      result: {
-        model: response.model,
-        summary: {
-          ...analysis.executiveSummary,
-          headline: parsed.headline,
-          overallAssessment: parsed.overallAssessment,
-          takeaways: parsed.takeaways,
-        },
-      },
-    };
-  } catch (error) {
-    // Typed, most specific first, so a configuration problem is not logged as a rate limit.
-    if (error instanceof Anthropic.AuthenticationError) {
-      console.warn('[narrative] LLM_API_KEY was rejected; using deterministic templates.');
-    } else if (error instanceof Anthropic.RateLimitError) {
-      console.warn('[narrative] rate limited; using deterministic templates.');
-    } else if (error instanceof Anthropic.APIError) {
-      console.warn(`[narrative] API error ${error.status}; using deterministic templates.`);
-    } else {
-      console.warn('[narrative] unexpected failure; using deterministic templates.', error);
-    }
-    return { result: null, reason: 'api_error' };
+  if (!outcome.ok) {
+    return { result: null, reason: outcome.reason, ...(outcome.detail ? { detail: outcome.detail } : {}) };
   }
+
+  const parsed = asNarrative(outcome.value);
+  if (!parsed) return { result: null, reason: 'unparsable' };
+
+  // The guarantee. Any figure that traces to nothing the engine computed discards the lot —
+  // a narrative is worth having only while every number in it is the engine's. This is also what
+  // makes a cheaper or weaker model safe to use here: it cannot put a figure on the screen.
+  const prose = [parsed.headline, parsed.overallAssessment, ...parsed.takeaways].join('\n');
+  const fidelity = checkNumericFidelity(prose, facts);
+  if (!fidelity.ok) {
+    return {
+      result: null,
+      reason: 'failed_numeric_check',
+      detail: fidelity.unsupported.map((u) => `${u.value} in "${u.context}"`).join('; '),
+    };
+  }
+
+  return {
+    result: {
+      model: outcome.model,
+      summary: {
+        ...analysis.executiveSummary,
+        headline: parsed.headline,
+        overallAssessment: parsed.overallAssessment,
+        takeaways: parsed.takeaways,
+      },
+    },
+  };
 }

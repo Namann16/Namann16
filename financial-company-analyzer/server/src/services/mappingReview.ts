@@ -1,4 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk';
 import {
   LINE_ITEM_MAP,
   applyMappingReview,
@@ -8,6 +7,7 @@ import {
   type MappingReviewVerdict,
 } from '@fca/core';
 import { config } from '../config/env.js';
+import { completeStructured } from './llm.js';
 
 /**
  * Second opinion on the import mapping.
@@ -48,7 +48,10 @@ const REVIEW_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['index', 'agrees', 'why'],
+        // Every property is listed, including the nullable one: constrained decoding (Groq's
+        // strict mode) rejects a schema whose `properties` and `required` disagree. Anthropic is
+        // unaffected, and asVerdicts() already treats a null betterKey as "no alternative".
+        required: ['index', 'agrees', 'betterKey', 'why'],
         properties: {
           index: { type: 'integer', description: 'The row index given in the input.' },
           agrees: {
@@ -127,12 +130,6 @@ function describeTarget(key: string): string {
   return parts.join(' · ');
 }
 
-let client: Anthropic | null = null;
-function anthropic(): Anthropic {
-  client ??= new Anthropic({ apiKey: config.LLM_API_KEY });
-  return client;
-}
-
 export type MappingReviewSkipReason =
   | 'not_configured'
   | 'disabled'
@@ -176,45 +173,28 @@ export async function reviewMappingPlan(
       .map((s) => describeTarget(s.targetKey)),
   }));
 
-  try {
-    const response = await anthropic().messages.parse({
-      model: config.LLM_MODEL,
-      max_tokens: 8000,
-      system: SYSTEM_PROMPT,
-      output_config: { effort: 'low', format: { type: 'json_schema', schema: REVIEW_SCHEMA } },
-      messages: [
-        {
-          role: 'user',
-          content: `Check these proposed mappings.\n\n${JSON.stringify(rows, null, 2)}`,
-        },
-      ],
-    });
+  const response = await completeStructured({
+    system: SYSTEM_PROMPT,
+    user: `Check these proposed mappings.\n\n${JSON.stringify(rows)}`,
+    schemaName: 'mapping_review',
+    schema: REVIEW_SCHEMA,
+    maxTokens: 8000,
+  });
 
-    if (response.stop_reason === 'refusal') return { ...unchanged, reason: 'refused' };
+  // Any failure keeps the text-matched plan, which is what a deployment with no key does.
+  if (!response.ok) return { ...unchanged, reason: response.reason };
 
-    const parsed = asVerdicts(response.parsed_output);
-    if (!parsed) return { ...unchanged, reason: 'unparsable' };
+  const parsed = asVerdicts(response.value);
+  if (!parsed) return { ...unchanged, reason: 'unparsable' };
 
-    // applyMappingReview discards anything out of range or out of band, so a verdict about a row
-    // that was never asked about cannot take effect.
-    const verdicts: MappingReviewVerdict[] = parsed;
-    const outcome = applyMappingReview(candidates, verdicts);
-    if (outcome.demoted > 0) {
-      console.info(
-        `[mappingReview] ${outcome.demoted} of ${band.length} confident mapping(s) demoted for confirmation.`,
-      );
-    }
-    return { ...outcome, model: response.model };
-  } catch (error) {
-    if (error instanceof Anthropic.AuthenticationError) {
-      console.warn('[mappingReview] LLM_API_KEY was rejected; keeping the text-matched plan.');
-    } else if (error instanceof Anthropic.RateLimitError) {
-      console.warn('[mappingReview] rate limited; keeping the text-matched plan.');
-    } else if (error instanceof Anthropic.APIError) {
-      console.warn(`[mappingReview] API error ${error.status}; keeping the text-matched plan.`);
-    } else {
-      console.warn('[mappingReview] unexpected failure; keeping the text-matched plan.', error);
-    }
-    return { ...unchanged, reason: 'api_error' };
+  // applyMappingReview discards anything out of range or out of band, so a verdict about a row
+  // that was never asked about cannot take effect — which is why a weaker model is safe here.
+  const verdicts: MappingReviewVerdict[] = parsed;
+  const outcome = applyMappingReview(candidates, verdicts);
+  if (outcome.demoted > 0) {
+    console.info(
+      `[mappingReview] ${outcome.demoted} of ${band.length} confident mapping(s) demoted for confirmation.`,
+    );
   }
+  return { ...outcome, model: response.model };
 }
