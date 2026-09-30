@@ -207,9 +207,12 @@ export function Shell({ children }: { children: ReactNode }) {
             onClick={() => { navigate('/'); setMobileOpen(false); }}
             className="flex items-center gap-2.5 px-4 py-4 text-left"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-600 text-[10px] font-semibold text-white dark:bg-accent-600/[0.08]0">FA</span>
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-600 text-[10px] font-semibold text-white dark:bg-accent-500">Fi</span>
             <span className="text-headline font-semibold leading-tight">
-              Financial<br />Company Analyzer
+              Financified
+              <span className="block text-footnote font-normal text-ink-500 dark:text-ink-400">
+                Financial company analyzer
+              </span>
             </span>
           </button>
 

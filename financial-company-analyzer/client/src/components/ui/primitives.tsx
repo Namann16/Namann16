@@ -12,7 +12,7 @@ const TONE_CLASSES: Record<Tone, string> = {
   positive: 'bg-positive-500/12 text-positive-600 dark:bg-positive-400/18 dark:text-positive-400',
   negative: 'bg-negative-500/12 text-negative-600 dark:bg-negative-400/18 dark:text-negative-400',
   caution: 'bg-caution-500/14 text-caution-600 dark:bg-caution-400/18 dark:text-caution-400',
-  accent: 'bg-accent-600/12 text-accent-600 dark:bg-accent-600/[0.08]0/20 dark:text-accent-500',
+  accent: 'bg-accent-600/12 text-accent-600 dark:bg-accent-500/20 dark:text-accent-500',
   neutral: 'bg-ink-500/12 text-ink-600 dark:bg-ink-400/16 dark:text-ink-400',
 };
 
@@ -287,7 +287,7 @@ export function SourceDot({ source }: { source: 'entered' | 'calculated' | 'miss
   return (
     <span
       title={calculated ? 'Calculated by the analysis engine' : 'Entered or imported'}
-      className={`ml-1 inline-block h-1.5 w-1.5 rounded-full align-middle ${calculated ? 'bg-accent-600 dark:bg-accent-600/[0.08]0' : 'bg-ink-400 dark:bg-ink-600'}`}
+      className={`ml-1 inline-block h-1.5 w-1.5 rounded-full align-middle ${calculated ? 'bg-accent-600 dark:bg-accent-500' : 'bg-ink-400 dark:bg-ink-600'}`}
       aria-hidden="true"
     />
   );
