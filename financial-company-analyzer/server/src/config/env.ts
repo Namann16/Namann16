@@ -16,8 +16,7 @@ const schema = z.object({
   MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(10 * 1024 * 1024),
   /** Optional. When absent the application uses deterministic insight templates only. */
   LLM_API_KEY: z.string().optional(),
-  LLM_MODEL: z.string().default('claude-opus-5'),
-  LLM_BASE_URL: z.string().default('https://api.anthropic.com/v1/messages'),
+  LLM_MODEL: z.string().default('claude-opus-5-5'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
 });

@@ -86,6 +86,17 @@ export interface CompanySummary {
   updatedAt: string;
 }
 
+/**
+ * Who wrote the executive summary's prose.
+ *
+ * Language is the one layer a model is allowed to touch, so the interface says which it was.
+ * `reason` explains the fallback when the engine wrote it, including the case that matters most —
+ * a generated narrative discarded because a figure in it did not trace back to the engine.
+ */
+export type NarrativeProvenance =
+  | { source: 'model'; model: string }
+  | { source: 'engine'; reason?: string };
+
 export interface StoredCompany {
   id: string;
   company: CompanyProfile;
@@ -221,7 +232,8 @@ export const api = {
 
   deleteCompany: (id: string) => request<void>(`/companies/${id}`, { method: 'DELETE' }),
 
-  analysis: (id: string) => request<{ analysis: AnalysisResult }>(`/companies/${id}/analysis`),
+  analysis: (id: string) =>
+    request<{ analysis: AnalysisResult; narrative: NarrativeProvenance }>(`/companies/${id}/analysis`),
   snapshots: (id: string) => request<{ snapshots: SnapshotSummary[] }>(`/companies/${id}/snapshots`),
   snapshot: (id: string, snapshotId: string) =>
     request<{ analysis: AnalysisResult }>(`/companies/${id}/snapshots/${snapshotId}`),

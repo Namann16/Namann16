@@ -29,7 +29,9 @@ import {
   createAnalysisSnapshot,
   getAnalysisSnapshot,
   listAnalysisSnapshots,
+  getUserSettings,
 } from '../services/repository.js';
+import { generateNarrative } from '../services/narrative.js';
 import { asyncHandler, notFound } from '../middleware/errors.js';
 
 export const companiesRouter = Router();
@@ -168,7 +170,29 @@ companiesRouter.get(
     if (!company) throw notFound('No analysis exists with that identifier.');
     const result = analyze(toDataset(company));
     await createAnalysisSnapshot(id, result);
-    res.json({ analysis: result });
+
+    /*
+     * The narrative layer is the last thing to run and the first thing to be dropped.
+     *
+     * The snapshot above is written from the deterministic result, so what is stored and audited
+     * is always the engine's own wording. A rewrite only ever changes the copy of the summary
+     * being sent to this one client, and any failure — unconfigured, disabled, API error, or a
+     * figure that did not trace back to the engine — leaves the deterministic summary in place.
+     */
+    const settings = await getUserSettings();
+    const narrative = await generateNarrative(result, { enabled: settings.llmNarrativeEnabled });
+    if (narrative.reason === 'failed_numeric_check') {
+      console.warn(`[narrative] discarded: unsupported figures — ${narrative.detail}`);
+    }
+
+    res.json({
+      analysis: narrative.result
+        ? { ...result, executiveSummary: narrative.result.summary }
+        : result,
+      narrative: narrative.result
+        ? { source: 'model' as const, model: narrative.result.model }
+        : { source: 'engine' as const, reason: narrative.reason },
+    });
   }),
 );
 
