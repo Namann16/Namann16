@@ -207,6 +207,7 @@ export const settingsSchema = z.object({
   defaultIndustry: z.enum(industryKeys).optional(),
   thresholds: thresholdsSchema.optional(),
   llmNarrativeEnabled: z.boolean().optional(),
+  llmMappingReviewEnabled: z.boolean().optional(),
 });
 
 /** The confirmed mapping a user submits from the import review screen. */

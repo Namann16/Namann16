@@ -166,6 +166,76 @@ export default function Settings() {
         ) : <Spinner label="Loading defaults" />}
       </Card>
 
+      {/*
+        The two places a language model is allowed to touch this application. Both default to off
+        and both are inert without a server-side key, so the shipped behaviour is the deterministic
+        engine on its own. Neither can change a number: the narrative layer is checked against the
+        engine's own figures before it is shown, and the mapping review can only ask you to confirm
+        a row, never map one.
+      */}
+      <Card
+        title="Language model options"
+        description="Optional, off by default, and never able to alter a calculated figure."
+        actions={
+          defaults && meta.config.llmEnabled ? (
+            <Badge tone="neutral">Key configured on the server</Badge>
+          ) : (
+            <Badge tone="neutral">No key configured</Badge>
+          )
+        }
+      >
+        {!meta.config.llmEnabled ? (
+          <p className="text-2xs leading-relaxed text-ink-500 dark:text-ink-400">
+            No <code>LLM_API_KEY</code> is set on the server, so both options below are inactive and the
+            application uses its deterministic templates and its text-similarity import matcher. Nothing
+            else changes when a key is added — these stay off until you turn them on.
+          </p>
+        ) : !defaults ? (
+          <Spinner label="Loading options" />
+        ) : (
+          <div className="space-y-3">
+            {([
+              {
+                key: 'llmNarrativeEnabled' as const,
+                label: 'Rephrase the executive summary',
+                detail:
+                  'A model rewrites the engine\u2019s summary into plainer prose. Every figure it writes is checked back against the engine\u2019s own output and the whole rewrite is discarded if one does not trace, so a verdict and its numbers cannot change \u2014 only the sentences around them.',
+              },
+              {
+                key: 'llmMappingReviewEnabled' as const,
+                label: 'Review confident import mappings',
+                detail:
+                  'On import, a model checks the rows the text matcher mapped confidently, for the two mistakes text similarity cannot see: a label that merely mentions a term, and a balance-sheet position matched to a cash flow. It can only ask you to confirm a row \u2014 it can never map one itself.',
+              },
+            ]).map((option) => (
+              <label key={option.key} className="flex gap-3 rounded-xl bg-ink-500/[0.06] px-3 py-2.5 dark:bg-ink-400/[0.08]">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-accent-500"
+                  checked={Boolean(defaults[option.key])}
+                  disabled={defaultsSaving}
+                  onChange={async (e) => {
+                    const next = e.target.checked;
+                    setDefaultsSaving(true);
+                    try {
+                      const { settings } = await api.saveSettings({ [option.key]: next });
+                      setDefaults(settings);
+                      setSaved(next ? `${option.label} is now on.` : `${option.label} is now off.`);
+                    } finally {
+                      setDefaultsSaving(false);
+                    }
+                  }}
+                />
+                <span>
+                  <span className="block text-[12.5px] font-medium text-ink-900 dark:text-ink-100">{option.label}</span>
+                  <span className="mt-0.5 block text-2xs leading-relaxed text-ink-600 dark:text-ink-400">{option.detail}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </Card>
+
       <Card title="Appearance">
         <div className="flex items-center gap-2">
           {(['light', 'dark', 'system'] as const).map((option) => (

@@ -239,6 +239,22 @@ export interface MappingCandidate {
   /** True when the confidence is too low to apply without the user confirming. */
   requiresConfirmation: boolean;
   isSectionHeader: boolean;
+  /**
+   * Set when a second-opinion review looked at this row. See `applyMappingReview`: a review can
+   * only clear a selection, never make one, so this field explains a demotion rather than a
+   * mapping.
+   */
+  review?: MappingReview;
+}
+
+export interface MappingReview {
+  state: 'agreed' | 'disagreed';
+  /** One sentence for the user, from the reviewer. */
+  why: string;
+  /** The target the string matcher had auto-selected, when the reviewer rejected it. */
+  rejectedKey?: string | null;
+  /** A canonical key the reviewer considered a better fit. Information only — never selected. */
+  suggestedInstead?: string;
 }
 
 /** Confidence at or above which a mapping is pre-selected. Below this the user must confirm. */

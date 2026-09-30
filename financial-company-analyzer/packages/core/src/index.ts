@@ -25,5 +25,6 @@ export * from './engine/numericFidelity.js';
 
 export * from './excel/parseValue.js';
 export * from './excel/mapping.js';
+export * from './excel/mappingReview.js';
 
 export * from './sample/apexConsumer.js';

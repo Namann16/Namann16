@@ -237,6 +237,8 @@ export interface UserSettings {
   defaultIndustry: string;
   thresholds: Partial<ThresholdConfig>;
   llmNarrativeEnabled: boolean;
+  /** Second-opinion review of confident import mappings. Can only ask for confirmation. */
+  llmMappingReviewEnabled: boolean;
 }
 
 const memorySettings: UserSettings = {
@@ -247,6 +249,7 @@ const memorySettings: UserSettings = {
   defaultIndustry: 'general',
   thresholds: {},
   llmNarrativeEnabled: false,
+  llmMappingReviewEnabled: false,
 };
 
 const memorySnapshots = new Map<string, { summary: SnapshotSummary; payload: any; fingerprint: string }>();
@@ -261,6 +264,7 @@ function fromSettingsDocument(doc: any): UserSettings {
     defaultIndustry: doc.defaultIndustry ?? 'general',
     thresholds: mapToObject<number>(doc.thresholds) as Partial<ThresholdConfig>,
     llmNarrativeEnabled: Boolean(doc.llmNarrativeEnabled),
+    llmMappingReviewEnabled: Boolean(doc.llmMappingReviewEnabled),
   };
 }
 

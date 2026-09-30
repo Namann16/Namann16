@@ -155,6 +155,16 @@ export interface MappingCandidate {
   requiresConfirmation: boolean;
   isSectionHeader: boolean;
   preview: Record<string, number | null>;
+  /**
+   * Present when the mapping review looked at this row. A review can only clear a selection, so
+   * a 'disagreed' state always comes with requiresConfirmation set.
+   */
+  review?: {
+    state: 'agreed' | 'disagreed';
+    why: string;
+    rejectedKey?: string | null;
+    suggestedInstead?: string;
+  };
 }
 
 export interface ParseResponse {
@@ -168,6 +178,13 @@ export interface ParseResponse {
   summary: {
     rowsRead: number; fieldsDetected: number; mapped: number; needsConfirmation: number;
     unmapped: number; periodsDetected: number; warnings: number; errors: number;
+  };
+  /** What the second-opinion mapping review did, if it ran. */
+  mappingReview?: {
+    reviewed: number;
+    demoted: number;
+    model?: string;
+    reason?: string;
   };
 }
 
@@ -189,6 +206,7 @@ export interface UserSettings {
   defaultIndustry: string;
   thresholds: Partial<ThresholdConfig>;
   llmNarrativeEnabled: boolean;
+  llmMappingReviewEnabled: boolean;
 }
 
 export interface SnapshotSummary {
