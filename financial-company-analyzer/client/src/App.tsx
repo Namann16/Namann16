@@ -21,6 +21,7 @@ import Insights from './pages/Insights';
 import Peers from './pages/Peers';
 import Report from './pages/Report';
 import Settings from './pages/Settings';
+import Forecast from './pages/Forecast';
 
 /**
  * Guard for sections that need an open analysis.
@@ -171,6 +172,7 @@ export default function App() {
           <Route path="/dupont" element={guarded(<DuPont />)} />
           <Route path="/health" element={guarded(<FinancialHealth />)} />
           <Route path="/insights" element={guarded(<Insights />)} />
+          <Route path="/forecast" element={guarded(<Forecast />)} />
           <Route path="/peers" element={guarded(<Peers />)} />
           <Route path="/report" element={guarded(<Report />)} />
           <Route path="/settings" element={<Settings />} />

@@ -18,6 +18,7 @@ type NavIconName =
   | 'dupont'
   | 'health'
   | 'insights'
+  | 'forecast'
   | 'peers'
   | 'report'
   | 'settings';
@@ -50,6 +51,7 @@ const NAV_GROUPS: { label: string; items: { to: string; label: string; icon: Nav
     items: [
       { to: '/health', label: 'Financial Health', icon: 'health', needsCompany: true },
       { to: '/insights', label: 'Insights & Red Flags', icon: 'insights', needsCompany: true },
+      { to: '/forecast', label: 'AI Forecast & Explanation', icon: 'forecast', needsCompany: true },
       { to: '/peers', label: 'Peer Comparison', icon: 'peers', needsCompany: true },
       { to: '/report', label: 'Report', icon: 'report', needsCompany: true },
       { to: '/settings', label: 'Settings', icon: 'settings' },
@@ -100,6 +102,7 @@ function NavIcon({ name }: { name: NavIconName }) {
     dupont: <><circle cx="12" cy="12" r="3" /><path d="M12 3v6M12 15v6M3 12h6M15 12h6" /></>,
     health: <><path d="M12 21s8-4.5 8-11V5l-8-3-8 3v5c0 6.5 8 11 8 11Z" /><path d="m8 12 2.5 2.5L16 9" /></>,
     insights: <><path d="M9 18h6M10 22h4" /><path d="M8.5 15.5A7 7 0 1 1 15.5 15c-.8.6-1.5 1.5-1.5 3h-4c0-1.5-.7-2.4-1.5-3Z" /></>,
+    forecast: <><path d="M4 19 10 13l4 3 6-8" /><path d="M17 8h3v3" /></>,
     peers: <><circle cx="9" cy="8" r="3" /><circle cx="17" cy="10" r="2.5" /><path d="M3 20c.3-3 2.3-5 6-5s5.7 2 6 5M15 15c3 .1 4.8 1.7 5 4" /></>,
     report: <><path d="M6 3h9l3 3v15H6z" /><path d="M15 3v4h4M9 12h6M9 16h6" /></>,
     settings: <><circle cx="12" cy="12" r="3" /><path d="m19.4 15 .1.1-1.8 3.1-.2-.1a2 2 0 0 0-3 .9v.2H9.5V19a2 2 0 0 0-3-.9l-.2.1-1.8-3.1.1-.1a2 2 0 0 0 0-3.5l-.1-.1 1.8-3.1.2.1a2 2 0 0 0 3-.9v-.2h5v.2a2 2 0 0 0 3 .9l.2-.1 1.8 3.1-.1.1a2 2 0 0 0 0 3.5Z" /></>,

@@ -3,6 +3,7 @@ import {
   analyze,
   analyzeScenario,
   buildLlmFacts,
+  buildForecasts,
   buildSampleDataset,
   type CompanyDataset,
   type FinancialPeriod,
@@ -31,6 +32,7 @@ import {
   listAnalysisSnapshots,
 } from '../services/repository.js';
 import { asyncHandler, notFound } from '../middleware/errors.js';
+import { config } from '../config/env.js';
 
 export const companiesRouter = Router();
 
@@ -215,6 +217,56 @@ companiesRouter.get(
     const company = await getCompany(id);
     if (!company) throw notFound('No analysis exists with that identifier.');
     res.json({ facts: buildLlmFacts(analyze(toDataset(company))) });
+  }),
+);
+
+companiesRouter.get(
+  '/:id/forecasts',
+  asyncHandler(async (req, res) => {
+    const id = objectIdSchema.parse(req.params.id);
+    const company = await getCompany(id);
+    if (!company) throw notFound('No analysis exists with that identifier.');
+    const horizon = Math.min(8, Math.max(1, Number(req.query.horizon ?? 3) || 3));
+    res.json({ forecasts: buildForecasts(analyze(toDataset(company)), horizon) });
+  }),
+);
+
+companiesRouter.post(
+  '/:id/narrative',
+  asyncHandler(async (req, res) => {
+    if (!config.hasLlm) {
+      res.status(503).json({ error: { message: 'AI narrative is not configured. Add LLM_API_KEY to the server environment.' } });
+      return;
+    }
+    const id = objectIdSchema.parse(req.params.id);
+    const company = await getCompany(id);
+    if (!company) throw notFound('No analysis exists with that identifier.');
+    const facts = buildLlmFacts(analyze(toDataset(company)));
+    const response = await fetch(config.LLM_BASE_URL, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': config.LLM_API_KEY!,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: config.LLM_MODEL,
+        max_tokens: 900,
+        system: 'You are a cautious financial analyst. Explain only the supplied calculated facts. Do not calculate new figures, invent facts, or assert causality. Use concise headings and recommendations.',
+        messages: [{ role: 'user', content: `Write an executive explanation of this analysis. Preserve all numbers exactly as provided and mention uncertainty where evidence is incomplete.\n\n${JSON.stringify(facts)}` }],
+      }),
+    });
+    if (!response.ok) {
+      res.status(502).json({ error: { message: `The configured AI provider returned HTTP ${response.status}.` } });
+      return;
+    }
+    const payload = await response.json() as { content?: { type: string; text?: string }[] };
+    const text = payload.content?.find((part) => part.type === 'text')?.text?.trim();
+    if (!text) {
+      res.status(502).json({ error: { message: 'The AI provider returned no narrative text.' } });
+      return;
+    }
+    res.json({ narrative: text, model: config.LLM_MODEL, generatedAt: new Date().toISOString() });
   }),
 );
 

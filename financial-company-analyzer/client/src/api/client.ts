@@ -3,6 +3,7 @@ import type {
   BusinessContext,
   CompanyProfile,
   FinancialPeriod,
+  ForecastSeries,
   IndustryKey,
   LineItemDef,
   MetricGroup,
@@ -222,6 +223,8 @@ export const api = {
   deleteCompany: (id: string) => request<void>(`/companies/${id}`, { method: 'DELETE' }),
 
   analysis: (id: string) => request<{ analysis: AnalysisResult }>(`/companies/${id}/analysis`),
+  forecasts: (id: string, horizon = 3) => request<{ forecasts: ForecastSeries[] }>(`/companies/${id}/forecasts?horizon=${horizon}`),
+  aiNarrative: (id: string) => request<{ narrative: string; model: string; generatedAt: string }>(`/companies/${id}/narrative`, { method: 'POST' }),
   snapshots: (id: string) => request<{ snapshots: SnapshotSummary[] }>(`/companies/${id}/snapshots`),
   snapshot: (id: string, snapshotId: string) =>
     request<{ analysis: AnalysisResult }>(`/companies/${id}/snapshots/${snapshotId}`),
