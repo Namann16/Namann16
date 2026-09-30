@@ -118,7 +118,7 @@ export interface IndustryMeta {
 }
 
 export interface AppMeta {
-  config: { hasDatabase: boolean; llmEnabled: boolean; maxUploadBytes: number; environment: string; storage: 'mongodb' | 'memory' };
+  config: { hasDatabase: boolean; llmEnabled: boolean; llmProvider: 'groq' | 'anthropic' | null; maxUploadBytes: number; environment: string; storage: 'mongodb' | 'memory' };
   statements: { key: string; label: string }[];
   lineItems: LineItemDef[];
   metricGroups: Record<MetricGroup, string>;

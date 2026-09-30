@@ -18,6 +18,9 @@ const schema = z.object({
   LLM_API_KEY: z.string().optional(),
   LLM_MODEL: z.string().default('claude-opus-5'),
   LLM_BASE_URL: z.string().default('https://api.anthropic.com/v1/messages'),
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_MODEL: z.string().default('llama-3.3-70b-versatile'),
+  GROQ_BASE_URL: z.string().default('https://api.groq.com/openai/v1/chat/completions'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
 });
@@ -36,7 +39,11 @@ export const config = {
   /** True when a database is configured. The API degrades to in-memory storage when it is not. */
   hasDatabase: Boolean(env.MONGODB_URI),
   /** True when an LLM is configured. The analysis itself never depends on this. */
-  hasLlm: Boolean(env.LLM_API_KEY),
+  hasLlm: Boolean(env.GROQ_API_KEY || env.LLM_API_KEY),
+  llmProvider: env.GROQ_API_KEY ? 'groq' as const : env.LLM_API_KEY ? 'anthropic' as const : null,
+  llmApiKey: env.GROQ_API_KEY ?? env.LLM_API_KEY,
+  llmModel: env.GROQ_API_KEY ? env.GROQ_MODEL : env.LLM_MODEL,
+  llmBaseUrl: env.GROQ_API_KEY ? env.GROQ_BASE_URL : env.LLM_BASE_URL,
   isProduction: env.NODE_ENV === 'production',
 };
 
@@ -45,6 +52,7 @@ export function publicConfig() {
   return {
     hasDatabase: config.hasDatabase,
     llmEnabled: config.hasLlm,
+    llmProvider: config.llmProvider,
     maxUploadBytes: config.MAX_UPLOAD_BYTES,
     environment: config.NODE_ENV,
   };

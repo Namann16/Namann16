@@ -167,9 +167,12 @@ Copy `.env.example` to `.env`. Every variable is optional except where noted.
 | `RATE_LIMIT_MAX` | `300` | Requests allowed per window. |
 | `API_PROXY_TARGET` | `http://localhost:$PORT` | Where the Vite dev server forwards `/api`. Read at build time only; **does not reach the browser bundle**. |
 | `VITE_API_BASE_URL` | *(unset)* | Optional API origin override. Local development and Vercel deployments default to `/api`; Vite or Vercel forwards that path to the API. |
-| `LLM_API_KEY` | *(unset)* | Optional. See below. |
-| `LLM_MODEL` | `claude-opus-5` | Model used if an LLM is configured. |
-| `LLM_BASE_URL` | Anthropic messages endpoint | Override for a proxy or compatible endpoint. |
+| `GROQ_API_KEY` | *(unset)* | Optional Groq API key. Takes precedence over the Anthropic-compatible variables. |
+| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model used for AI explanations. |
+| `GROQ_BASE_URL` | Groq chat completions endpoint | Override only when using a compatible Groq proxy. |
+| `LLM_API_KEY` | *(unset)* | Optional Anthropic-compatible API key fallback. |
+| `LLM_MODEL` | `claude-opus-5` | Anthropic-compatible model fallback. |
+| `LLM_BASE_URL` | Anthropic messages endpoint | Anthropic-compatible endpoint override. |
 
 **Secrets never reach the browser.** Only `VITE_`-prefixed variables are compiled into the client
 bundle, and none of those is a secret — `VITE_API_BASE_URL` is a public URL. `LLM_API_KEY` is read
