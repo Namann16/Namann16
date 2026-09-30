@@ -167,7 +167,7 @@ Copy `.env.example` to `.env`. Every variable is optional except where noted.
 | `RATE_LIMIT_MAX` | `300` | Requests allowed per window. |
 | `API_PROXY_TARGET` | `http://localhost:$PORT` | Where the Vite dev server forwards `/api`. Read at build time only; **does not reach the browser bundle**. |
 | `VITE_API_BASE_URL` | *(unset)* | Optional API origin override. Local development and Vercel deployments default to `/api`; Vite or Vercel forwards that path to the API. |
-| `GROQ_API_KEY` | *(unset)* | Optional Groq API key. Takes precedence over the Anthropic-compatible variables. |
+| `GROQ_API_KEY` | *(unset)* | Optional Groq API key. Takes precedence over the Anthropic-compatible variables. A Groq `gsk_...` key in `LLM_API_KEY` is also detected automatically for compatibility. |
 | `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model used for AI explanations. |
 | `GROQ_BASE_URL` | Groq chat completions endpoint | Override only when using a compatible Groq proxy. |
 | `LLM_API_KEY` | *(unset)* | Optional Anthropic-compatible API key fallback. |

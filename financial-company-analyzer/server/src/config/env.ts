@@ -34,16 +34,19 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 
+const groqKeyInLegacySlot = env.LLM_API_KEY?.startsWith('gsk_') ?? false;
+const groqConfigured = Boolean(env.GROQ_API_KEY || groqKeyInLegacySlot || env.LLM_BASE_URL.includes('api.groq.com'));
+
 export const config = {
   ...env,
   /** True when a database is configured. The API degrades to in-memory storage when it is not. */
   hasDatabase: Boolean(env.MONGODB_URI),
   /** True when an LLM is configured. The analysis itself never depends on this. */
   hasLlm: Boolean(env.GROQ_API_KEY || env.LLM_API_KEY),
-  llmProvider: env.GROQ_API_KEY ? 'groq' as const : env.LLM_API_KEY ? 'anthropic' as const : null,
+  llmProvider: groqConfigured ? 'groq' as const : env.LLM_API_KEY ? 'anthropic' as const : null,
   llmApiKey: env.GROQ_API_KEY ?? env.LLM_API_KEY,
-  llmModel: env.GROQ_API_KEY ? env.GROQ_MODEL : env.LLM_MODEL,
-  llmBaseUrl: env.GROQ_API_KEY ? env.GROQ_BASE_URL : env.LLM_BASE_URL,
+  llmModel: groqConfigured ? env.GROQ_MODEL : env.LLM_MODEL,
+  llmBaseUrl: groqConfigured ? env.GROQ_BASE_URL : env.LLM_BASE_URL,
   isProduction: env.NODE_ENV === 'production',
 };
 
