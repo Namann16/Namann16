@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { AnalysisResult, FinancialPeriod, PeerCompany } from '@fca/core';
-import { api, ApiError, type AppMeta, type CompanySummary, type StoredCompany } from '../api/client';
+import { api, ApiError, type AppMeta, type CompanySummary, type NarrativeProvenance, type StoredCompany } from '../api/client';
 
 /**
  * Workspace state.
@@ -18,6 +18,8 @@ interface WorkspaceState {
   companies: CompanySummary[];
   current: StoredCompany | null;
   analysis: AnalysisResult | null;
+  /** Who wrote the executive summary's prose — the engine, or a model rephrasing its findings. */
+  narrative: NarrativeProvenance;
   loading: boolean;
   analysing: boolean;
   error: string | null;
@@ -81,6 +83,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [companies, setCompanies] = useState<CompanySummary[]>([]);
   const [current, setCurrent] = useState<StoredCompany | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [narrative, setNarrative] = useState<NarrativeProvenance>({ source: 'engine' });
   const [loading, setLoading] = useState(false);
   const [analysing, setAnalysing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -123,12 +126,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const loadAnalysis = useCallback(async (id: string) => {
     setAnalysing(true);
     try {
-      const { analysis: result } = await api.analysis(id);
+      const { analysis: result, narrative: provenance } = await api.analysis(id);
       setAnalysis(result);
+      setNarrative(provenance ?? { source: 'engine' });
       setDirty(false);
     } catch (e) {
       setError(describe(e));
       setAnalysis(null);
+      setNarrative({ source: 'engine' });
     } finally {
       setAnalysing(false);
     }
@@ -295,13 +300,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
-      meta, metaError, companies, current, analysis, loading, analysing, error, dirty, theme, connecting, retryConnection: bootstrap,
+      meta, metaError, companies, current, analysis, narrative, loading, analysing, error, dirty, theme, connecting, retryConnection: bootstrap,
       refreshCompanies, openCompany, closeCompany, createCompany, loadSample, deleteCompany,
       updateProfile, setPeriodsLocal, savePeriods, savePeers, saveThresholds, reanalyse,
       setTheme, clearError: () => setError(null),
     }),
     [
-      meta, metaError, companies, current, analysis, loading, analysing, error, dirty, theme, connecting, bootstrap,
+      meta, metaError, companies, current, analysis, narrative, loading, analysing, error, dirty, theme, connecting, bootstrap,
       refreshCompanies, openCompany, closeCompany, createCompany, loadSample, deleteCompany,
       updateProfile, setPeriodsLocal, savePeriods, savePeers, saveThresholds, reanalyse, setTheme,
     ],

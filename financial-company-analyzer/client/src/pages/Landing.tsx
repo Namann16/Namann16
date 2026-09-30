@@ -115,7 +115,7 @@ export default function Landing() {
           loop
           muted
           playsInline
-          poster="/hero-video/market-pulse.gif"
+          poster="/hero-video/market-pulse-poster.jpg"
           aria-hidden="true"
         >
           <source src="/hero-video/market-pulse.mp4" type="video/mp4" />

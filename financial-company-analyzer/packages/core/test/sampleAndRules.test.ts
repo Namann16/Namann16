@@ -117,6 +117,30 @@ describe('LLM fact package', () => {
     // Raw line items must not be handed to the language layer.
     expect(JSON.stringify(facts)).not.toContain('retainedEarnings');
   });
+
+  /**
+   * The payload is what every narrative request pays for, and it grew to 74 KB before anyone
+   * measured it — 80% of that was a six-point series on each of seventy metrics, which an
+   * executive summary never narrates. These two tests exist so it cannot grow back unnoticed.
+   */
+  it('does not send a per-metric series', () => {
+    const facts = buildLlmFacts(sample);
+    expect(facts.metrics.length).toBeGreaterThan(0);
+    for (const metric of facts.metrics) {
+      expect(metric).not.toHaveProperty('series');
+      expect(metric).not.toHaveProperty('points');
+    }
+    // Trajectory is still available, in the fields that cost almost nothing.
+    expect(facts.metrics.some((m) => m.trend !== null && m.trend !== undefined)).toBe(true);
+    expect(facts.cagr.length).toBeGreaterThan(0);
+  });
+
+  it('stays within a size budget on the reference dataset', () => {
+    // Compact, because that is how narrative.ts serialises it — pretty-printing was another 43%.
+    const chars = JSON.stringify(buildLlmFacts(sample)).length;
+    // Headroom over the measured 21,886, but well under the 42,489 that re-adding the series costs.
+    expect(chars).toBeLessThan(32_000);
+  });
 });
 
 describe('data quality surfaces problems rather than hiding them', () => {

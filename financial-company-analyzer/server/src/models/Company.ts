@@ -137,6 +137,7 @@ const UserSettingsSchema = new Schema(
     defaultIndustry: { type: String, default: 'general' },
     thresholds: { type: Map, of: Number, default: () => new Map() },
     llmNarrativeEnabled: { type: Boolean, default: false },
+    llmMappingReviewEnabled: { type: Boolean, default: false },
   },
   { timestamps: true, versionKey: false },
 );

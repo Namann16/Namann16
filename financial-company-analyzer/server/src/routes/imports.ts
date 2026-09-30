@@ -1,11 +1,18 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { commitImportSchema } from '../validation/schemas.js';
-import { commitImport, discardImport, parseWorkbook, retrieveImport } from '../services/excelImport.js';
+import {
+  applyReviewedMappings,
+  commitImport,
+  discardImport,
+  parseWorkbook,
+  retrieveImport,
+} from '../services/excelImport.js';
+import { reviewMappingPlan } from '../services/mappingReview.js';
 import { templateBuffer } from '../services/excelTemplate.js';
 import { asyncHandler, badRequest, notFound } from '../middleware/errors.js';
 import { uploadSpreadsheet } from '../middleware/upload.js';
-import { getCompany, updateCompany } from '../services/repository.js';
+import { getCompany, getUserSettings, updateCompany } from '../services/repository.js';
 import type { FinancialPeriod } from '@fca/core';
 
 export const importsRouter = Router();
@@ -34,7 +41,7 @@ importsRouter.get(
  * short-lived token and the proposal is returned for the user to review.
  */
 importsRouter.post('/parse', (req, res, next) => {
-  uploadSpreadsheet(req, res, (uploadError) => {
+  uploadSpreadsheet(req, res, async (uploadError) => {
     if (uploadError) {
       next(uploadError);
       return;
@@ -58,6 +65,16 @@ importsRouter.post('/parse', (req, res, next) => {
         ...(units ? { units } : {}),
       });
 
+      // Second opinion on the mappings the text matcher was confident about. This can only demote
+      // a row to needing confirmation, so an unconfigured, disabled or failing reviewer leaves the
+      // plan exactly as the matcher built it. The result is written back to the staged import
+      // because /commit falls back to the staged selection for rows the client omits.
+      const settings = await getUserSettings();
+      const review = await reviewMappingPlan(parsed.mappings, {
+        enabled: settings.llmMappingReviewEnabled,
+      });
+      if (review.demoted > 0) applyReviewedMappings(parsed, review.candidates);
+
       res.json({
         importId: parsed.importId,
         fileName: parsed.fileName,
@@ -77,6 +94,12 @@ importsRouter.post('/parse', (req, res, next) => {
         })),
         warnings: parsed.warnings,
         summary: parsed.summary,
+        mappingReview: {
+          reviewed: review.reviewed,
+          demoted: review.demoted,
+          ...(review.model ? { model: review.model } : {}),
+          ...(review.reason ? { reason: review.reason } : {}),
+        },
       });
     } catch (error) {
       next(error);

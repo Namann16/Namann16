@@ -12,6 +12,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.129.0",
     "@fca/core": "1.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

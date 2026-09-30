@@ -24,7 +24,7 @@ function SignalIcon({ type }: { type: 'risk' | 'positive' | 'insight' }) {
 }
 
 export default function Insights() {
-  const { analysis } = useWorkspace();
+  const { analysis, narrative } = useWorkspace();
   const [tab, setTab] = useState<Tab>('all');
   const [minSeverity, setMinSeverity] = useState<Severity>('info');
 
@@ -75,7 +75,21 @@ export default function Insights() {
         ))}
       </div>
 
-      <Card className="border-l-4 border-l-accent-500 bg-gradient-to-br from-accent-500/[0.08] via-transparent to-transparent" title="Executive summary" description="The most material observations, prioritised rather than exhaustive.">
+      {/*
+        Traceability applies to language as well as to figures: the reader is told which words are
+        the engine's and which a model rephrased. Either way the numbers are the engine's — a
+        narrative whose figures did not trace back to the analysis is discarded before it ships.
+      */}
+      <Card
+        className="border-l-4 border-l-accent-500 bg-gradient-to-br from-accent-500/[0.08] via-transparent to-transparent"
+        title="Executive summary"
+        description="The most material observations, prioritised rather than exhaustive."
+        actions={
+          <Badge tone={narrative.source === 'model' ? 'accent' : 'neutral'} className="font-normal">
+            {narrative.source === 'model' ? `Wording by ${narrative.model}` : 'Wording by the engine'}
+          </Badge>
+        }
+      >
         <p className="text-[15px] font-semibold tracking-tight text-ink-950 dark:text-ink-50">{executiveSummary.headline}</p>
         <p className="mt-2 max-w-4xl text-[12.5px] leading-relaxed text-ink-700 dark:text-ink-300">{executiveSummary.overallAssessment}</p>
 
@@ -91,6 +105,13 @@ export default function Insights() {
               ))}
             </ul>
           </>
+        )}
+
+        {narrative.source === 'engine' && narrative.reason === 'failed_numeric_check' && (
+          <p className="mt-3 text-footnote text-caution-600 dark:text-caution-400">
+            A generated rewrite was discarded because it contained a figure that did not trace back to
+            the analysis. The engine&rsquo;s own wording is shown instead.
+          </p>
         )}
 
         <div className="mt-4 grid gap-3 md:grid-cols-2">

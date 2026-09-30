@@ -317,6 +317,28 @@ export function parseWorkbook(buffer: Buffer, options: ParseOptions): ParsedImpo
   return parsed;
 }
 
+/**
+ * Replace a staged import's mapping plan with a reviewed one.
+ *
+ * `parseWorkbook` hands back the same object it stored against the import token, so updating it
+ * here updates what `/commit` will later read. That matters: `commitImport` falls back to the
+ * staged `selected` value for any row the client does not send a decision for, so a demotion that
+ * lived only in the HTTP response would be undone by a client that omitted the row — which is the
+ * exact failure the review exists to prevent.
+ *
+ * The confirmation counts are recomputed so the summary the user is shown stays true.
+ */
+export function applyReviewedMappings(parsed: ParsedImport, candidates: MappingCandidate[]): void {
+  if (candidates.length !== parsed.mappings.length) return;
+  parsed.mappings = candidates;
+  parsed.summary = {
+    ...parsed.summary,
+    mapped: candidates.filter((m) => m.selected !== null).length,
+    needsConfirmation: candidates.filter((m) => m.requiresConfirmation && m.suggestions.length > 0).length,
+    unmapped: candidates.filter((m) => m.selected === null && m.suggestions.length === 0 && !m.isSectionHeader).length,
+  };
+}
+
 export interface CommitResult {
   periods: FinancialPeriod[];
   applied: { rowKey: string; label: string; target: string; periodsFilled: number }[];

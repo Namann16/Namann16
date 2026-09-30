@@ -1021,4 +1021,30 @@
       transition-duration: 1ms !important;
     }
   }
+
+  /*
+   * Printing.
+   *
+   * The scroll reveal holds anything outside the viewport at opacity 0, and a print job renders
+   * the whole document at once — so without this, printing a page from the app yields blank
+   * sections for everything the reader had not scrolled past. Nothing that is on the page may be
+   * missing from a printout of it.
+   *
+   * The PDF export is unaffected either way: it is server-rendered HTML in a new tab and never
+   * loads this stylesheet. This covers a plain Ctrl+P on the application itself.
+   */
+  @media print {
+    .scroll-reveal,
+    .scroll-revealed {
+      opacity: 1 !important;
+      transform: none !important;
+      filter: none !important;
+      animation: none !important;
+    }
+    .scroll-revealed::after { display: none !important; }
+    /* Decorative motion and chrome have no place on paper. */
+    .entry-splash,
+    .hero-video-media { display: none !important; }
+    .stagger > * { animation: none !important; opacity: 1 !important; }
+  }
 }

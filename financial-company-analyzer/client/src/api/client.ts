@@ -86,6 +86,17 @@ export interface CompanySummary {
   updatedAt: string;
 }
 
+/**
+ * Who wrote the executive summary's prose.
+ *
+ * Language is the one layer a model is allowed to touch, so the interface says which it was.
+ * `reason` explains the fallback when the engine wrote it, including the case that matters most —
+ * a generated narrative discarded because a figure in it did not trace back to the engine.
+ */
+export type NarrativeProvenance =
+  | { source: 'model'; model: string }
+  | { source: 'engine'; reason?: string };
+
 export interface StoredCompany {
   id: string;
   company: CompanyProfile;
@@ -144,6 +155,16 @@ export interface MappingCandidate {
   requiresConfirmation: boolean;
   isSectionHeader: boolean;
   preview: Record<string, number | null>;
+  /**
+   * Present when the mapping review looked at this row. A review can only clear a selection, so
+   * a 'disagreed' state always comes with requiresConfirmation set.
+   */
+  review?: {
+    state: 'agreed' | 'disagreed';
+    why: string;
+    rejectedKey?: string | null;
+    suggestedInstead?: string;
+  };
 }
 
 export interface ParseResponse {
@@ -157,6 +178,13 @@ export interface ParseResponse {
   summary: {
     rowsRead: number; fieldsDetected: number; mapped: number; needsConfirmation: number;
     unmapped: number; periodsDetected: number; warnings: number; errors: number;
+  };
+  /** What the second-opinion mapping review did, if it ran. */
+  mappingReview?: {
+    reviewed: number;
+    demoted: number;
+    model?: string;
+    reason?: string;
   };
 }
 
@@ -178,6 +206,7 @@ export interface UserSettings {
   defaultIndustry: string;
   thresholds: Partial<ThresholdConfig>;
   llmNarrativeEnabled: boolean;
+  llmMappingReviewEnabled: boolean;
 }
 
 export interface SnapshotSummary {
@@ -221,7 +250,8 @@ export const api = {
 
   deleteCompany: (id: string) => request<void>(`/companies/${id}`, { method: 'DELETE' }),
 
-  analysis: (id: string) => request<{ analysis: AnalysisResult }>(`/companies/${id}/analysis`),
+  analysis: (id: string) =>
+    request<{ analysis: AnalysisResult; narrative: NarrativeProvenance }>(`/companies/${id}/analysis`),
   snapshots: (id: string) => request<{ snapshots: SnapshotSummary[] }>(`/companies/${id}/snapshots`),
   snapshot: (id: string, snapshotId: string) =>
     request<{ analysis: AnalysisResult }>(`/companies/${id}/snapshots/${snapshotId}`),

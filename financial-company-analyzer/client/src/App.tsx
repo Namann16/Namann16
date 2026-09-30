@@ -75,11 +75,41 @@ function EntrySplash({ onDone }: { onDone: () => void }) {
   );
 }
 
+/**
+ * Whether the entry splash has already played this session.
+ *
+ * The splash holds the page for about 1.9 seconds behind `overflow: hidden`. That is a pleasure
+ * on arrival and an obstacle on the fortieth refresh of a tool someone uses daily, so it plays
+ * once per browser session rather than once per page load. sessionStorage is the right scope:
+ * it clears when the tab closes, so the next visit gets the full introduction again.
+ *
+ * Storage can throw or come back empty in a private window or with site data blocked, so a
+ * failure is read as "not yet seen" — the worst case is the splash a viewer already enjoyed.
+ */
+const SPLASH_SEEN_KEY = 'fca.splashSeen';
+
+function splashAlreadySeen(): boolean {
+  try {
+    return sessionStorage.getItem(SPLASH_SEEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function rememberSplashSeen(): void {
+  try {
+    sessionStorage.setItem(SPLASH_SEEN_KEY, '1');
+  } catch { /* storage unavailable; the splash simply plays again next load */ }
+}
+
 export default function App() {
   const { meta, metaError, connecting, retryConnection } = useWorkspace();
   const location = useLocation();
-  const [showEntrySplash, setShowEntrySplash] = useState(true);
-  const finishEntrySplash = () => setShowEntrySplash(false);
+  const [showEntrySplash, setShowEntrySplash] = useState(() => !splashAlreadySeen());
+  const finishEntrySplash = () => {
+    rememberSplashSeen();
+    setShowEntrySplash(false);
+  };
 
   useEffect(() => {
     if (!showEntrySplash) return;

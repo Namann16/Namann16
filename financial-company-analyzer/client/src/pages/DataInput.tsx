@@ -616,8 +616,30 @@ export default function DataInput() {
                             <span className="text-2xs text-ink-400">no match</span>
                           )}
                         </td>
-                        <td className="max-w-xs whitespace-normal text-left text-2xs text-ink-500 dark:text-ink-400">
-                          {top?.reason ?? 'No recognised financial term resembles this label.'}
+                        <td className="text-left">
+                          {/*
+                            The wrapping sits on an inner block, not the cell: a td in an
+                            auto-layout table ignores max-width, and .fin-table td outranks a
+                            whitespace utility class.
+                          */}
+                          <div className="max-w-xs whitespace-normal text-2xs text-ink-500 dark:text-ink-400">
+                            {top?.reason ?? 'No recognised financial term resembles this label.'}
+                            {mapping.review?.state === 'disagreed' && (
+                              <span className="mt-1 block text-caution-700 dark:text-caution-400">
+                                <span className="font-medium">Review disagreed:</span> {mapping.review.why}
+                                {mapping.review.suggestedInstead && meta?.lineItems && (
+                                  <>
+                                    {' '}Suggested instead:{' '}
+                                    <span className="font-medium">
+                                      {meta.lineItems.find((i) => i.key === mapping.review!.suggestedInstead)?.label
+                                        ?? mapping.review.suggestedInstead}
+                                    </span>
+                                    .
+                                  </>
+                                )}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="tnum text-ink-600 dark:text-ink-300">
                           {typeof preview === 'number' ? formatCurrency(preview, ctx) : 'n/a'}
